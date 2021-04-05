@@ -1,7 +1,5 @@
 import { Program } from "../../src/og/webgl/Program.js";
 import { RenderNode } from "../../src/og/scene/RenderNode.js";
-import { RADIANS } from "../../src/og/math.js";
-import { Mat4 } from "../../src/og/math/Mat4.js";
 import { Vec3 } from "../../src/og/math/Vec3.js";
 
 export class ObjectScene extends RenderNode {
@@ -18,6 +16,8 @@ export class ObjectScene extends RenderNode {
 
         this.translate = new Vec3(0, 0, 0);
 
+        this.scale = 10;
+
     }
 
     init() {
@@ -28,7 +28,8 @@ export class ObjectScene extends RenderNode {
                 'uMVMatrix': 'mat4',
                 'uPMatrix': 'mat4',
                 'uTranslate': 'vec3',
-                'uSampler': 'sampler2d'
+                'uSampler': 'sampler2d',
+                'uScale': 'vec3'
             },
             'attributes': {
                 'aVertexPosition': 'vec3',
@@ -41,11 +42,12 @@ export class ObjectScene extends RenderNode {
                     uniform mat4 uMVMatrix;
                     uniform mat4 uPMatrix;
                     uniform vec3 uTranslate;
+                    uniform vec3 uScale;
                     
                     varying vec2 vTextureCoord;
                     
                     void main(void) {
-                        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0) - vec4(uTranslate, 1.0);
+                        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition * uScale  + uTranslate, 1.0) ;
                         vTextureCoord = aTextureCoord;
                     }`,
             'fragmentShader':
@@ -104,7 +106,7 @@ export class ObjectScene extends RenderNode {
             -1.0, -1.0, 1.0,
             -1.0, 1.0, 1.0,
             -1.0, 1.0, -1.0
-        ].map(v => v * 1000000);
+        ];
 
         this.vericesBuffer = this.renderer.handler.createArrayBuffer(new Float32Array(vertices), 3, vertices.length / 3);
 
@@ -170,14 +172,7 @@ export class ObjectScene extends RenderNode {
 
         sh.activate();
 
-        //Cube rotation
-        const gradRad = this._grad * RADIANS,
-            rotate = Mat4.identity()
-                .rotate(new Vec3(0, 1, 0), gradRad)
-                .rotate(new Vec3(1, 0, 0), gradRad);
-        this._grad++;
-
-        const modelViewMat = r.activeCamera._viewMatrix.mul(rotate);
+        const modelViewMat = r.activeCamera._viewMatrix;
 
         //Sets shader's data
         gl.activeTexture(gl.TEXTURE0);
@@ -187,6 +182,7 @@ export class ObjectScene extends RenderNode {
         gl.uniformMatrix4fv(p.uniforms.uMVMatrix, false, modelViewMat._m);
         gl.uniformMatrix4fv(p.uniforms.uPMatrix, false, r.activeCamera.getProjectionMatrix());
         gl.uniform3fv(p.uniforms.uTranslate, new Float32Array([this.translate.x, this.translate.y, this.translate.z]));
+        gl.uniform3fv(p.uniforms.uScale, new Float32Array([this.scale, this.scale, this.scale]));
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vericesBuffer);
         gl.vertexAttribPointer(p.attributes.aVertexPosition, this.vericesBuffer.itemSize, gl.FLOAT, false, 0, 0);
