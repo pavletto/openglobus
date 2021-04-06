@@ -35,15 +35,21 @@ let globus = new Globe({
 
 // carrots.addTo(globus.planet);
 const object = new ObjectScene(),
-    placeLonLat = new LonLat(42.51425, 43.25652, 3000);
-globus.planet.flyLonLat(placeLonLat);
-globus.planet.renderer.addNode(object);
-globus.planet.renderer.activeCamera.set(new Vec3(5, 5, 5), Vec3.ZERO).update();
-// object.setTranslate(globus.planet.ellipsoid.lonLatToCartesian(placeLonLat));
-globus.planet.renderer.events.on('mousemove', () => {
-    const pos = globus.planet.getCartesianFromMouseTerrain();
+    placeLonLat = new LonLat(42.51425, 43.25652, 2500),
+    cameraLonLat = new LonLat(42.51425, 43.25332, 3000),
+    { activeCamera } = globus.planet.renderer,
+    pitchCamera = () => {
+        activeCamera.pitch(45);
+        activeCamera.refresh();
 
-    if (pos && pos.x) object.setTranslate(pos);
-});
+        activeCamera.events.off('moveend', pitchCamera);
+    };
+globus.planet.flyLonLat(cameraLonLat);
+globus.planet.renderer.addNode(object);
+activeCamera.set(new Vec3(5, 5, 5), Vec3.ZERO).update();
+
+activeCamera.events.on('moveend', pitchCamera);
+object.setTranslate(globus.planet.ellipsoid.lonLatToCartesian(placeLonLat));
+
 window.globus = globus;
 window.object = object;
