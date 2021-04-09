@@ -204,11 +204,9 @@
                 //Cube rotation
                 var gradRad = this._grad * math.RADIANS;
                 var rotate = Mat4.identity()
-                    .rotate(new Vec3(0, 1, 0), gradRad)
-                    .rotate(new Vec3(1, 0, 0), gradRad);
                 this._grad++;
 
-                var modelViewMat = r.activeCamera._viewMatrix.mul(rotate);
+                var modelViewMat = r.activeCamera._viewMatrix;
 
                 //Sets shader's data
                 gl.activeTexture(gl.TEXTURE0);
@@ -240,7 +238,7 @@
         renderer.addNodes([new MyScene(), new Axes()]);
         renderer.addControls([
             new SimpleNavigation({ 'speed': 0.3 }),
-            new ShowFps()
+            // new ShowFps()
         ]);
         renderer.activeCamera.set(new Vec3(5, 5, 5), Vec3.ZERO).update();
         renderer.start();
