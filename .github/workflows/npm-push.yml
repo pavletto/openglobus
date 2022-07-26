@@ -13,8 +13,6 @@ jobs:
           node-version: 16
           registry-url: https://registry.npmjs.org/
 
-      - run: npm ci
-
       - name: Cache node modules
         uses: actions/cache@v2
         env:
@@ -28,6 +26,7 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
+      - run: npm ci
 
   test:
     needs: [ init ]
