@@ -1,36 +1,50 @@
 name: Triggers the workflow on push or pull request events
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
-  build:
+  dependencies:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           node-version: 16
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: |
-          echo "::set-output name=dir::$(npm config get cache)"
-      - uses: actions/cache@v3
-        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
-        with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
+          registry-url: https://registry.npmjs.org/
       - run: npm ci
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [ dependencies ]
+    steps:
       - run: npm test
+
+  docs:
+    runs-on: ubuntu-latest
+    needs: [ dependencies ]
+    steps:
       - run: npm run api
-      
+
+  deploy_docs:
+    runs-on: ubuntu-latest
+    needs: [ docs ]
+    steps:
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./api
-
-      - run: npm run generate_types
       - run: npm run build
+
+  generate_types:
+    runs-on: ubuntu-latest
+    needs: [ dependencies ]
+    steps:
+      - run: npm run generate_types
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [ dependencies ]
+    steps:
+      - run: npm run build
+
