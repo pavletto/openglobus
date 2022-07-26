@@ -26,19 +26,19 @@ jobs:
       - run: npm ci
 
   test:
-    runs-on: init
+    uses: init
     needs: [ init ]
     steps:
       - run: npm test
 
   docs:
-    runs-on: init
+    uses: init
     needs: [ init ]
     steps:
       - run: npm run api
 
   deploy_docs:
-    runs-on: init
+    uses: init
     needs: [ docs ]
     steps:
       - name: Deploy
@@ -49,13 +49,13 @@ jobs:
       - run: npm run build
 
   generate_types:
-    runs-on: init
+    uses: init
     needs: [ init ]
     steps:
       - run: npm run generate_types
 
   build:
-    runs-on: init
+    uses: init
     needs: [ init ]
     steps:
       - run: npm run build
