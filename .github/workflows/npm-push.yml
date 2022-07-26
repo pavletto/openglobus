@@ -6,6 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: ./.github/actions/runs
       - run: npm test
       - run: npm run build
@@ -15,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v2
       - uses: ./.github/actions/runs
-        
       - run: npm run api
 
       - name: Deploy
@@ -30,5 +31,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v2
       - uses: ./.github/actions/runs
       - run: npm run generate_types
