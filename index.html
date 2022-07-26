@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Home - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading">Namespaces</li><li class="nav-heading"><span class="nav-item-type type-namespace">N</span><span class="nav-item-name"><a href="og.html">og</a></span></li>
+</nav>
+
+<div id="main">
+    
+
+    
+
+
+
+    
+
+
+
+
+
+
+
+
+
+    
+
+
+    <section class="readme">
+        <article><p><a href="https://gitter.im/openglobus/og?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img src="https://badges.gitter.im/openglobus/og.svg" alt="Join the chat at https://gitter.im/openglobus/og"></a></p>
+<h1>OpenGlobus</h1>
+<p>English | <a href="README_CN.md">简体中文</a></p>
+<p><a href="http://www.openglobus.org/">OpenGlobus</a> is a javascript library designed to display interactive 3d maps and planets<br>
+with map tiles, imagery and vector data, markers and 3d objects. It uses the WebGL technology, open source and<br>
+completely free.</p>
+<p>The OpenGlobus main goal is to make 3d map features fast, good lookin, user friendly and easy to implement in any<br>
+related project.</p>
+<h2>Getting Start</h2>
+<h3>Installation</h3>
+<pre class="prettyprint source lang-sh"><code>npm install @openglobus/og
+# or
+yarn add @openglobus/og
+</code></pre>
+<h3>Code: using umd lib</h3>
+<pre class="prettyprint source lang-html"><code>&lt;link rel=&quot;stylesheet&quot; href=&quot;./libs/og.css&quot;>
+&lt;script src=&quot;./libs/og.umd.js&quot;>&lt;/script>
+&lt;div id=&quot;globus&quot;>&lt;/div>
+&lt;script>
+
+  const osm = new og.layer.XYZ(&quot;OpenStreetMap&quot;, {
+    isBaseLayer: true,
+    url: &quot;//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png&quot;,
+    visibility: true,
+  })
+
+  const globus = new og.Globe({
+    target: &quot;globus&quot;, // a HTMLDivElement which its id is `globus`
+    name: &quot;Earth&quot;,
+    terrain: new og.terrain.GlobusTerrain(),
+    layers: [osm],
+    autoActivated: true,
+    viewExtent: [5.56707, 45.15679, 5.88834, 45.22260]
+  })
+
+&lt;/script>
+</code></pre>
+<h3>Code: using esm lib</h3>
+<pre class="prettyprint source lang-html"><code>&lt;link rel=&quot;stylesheet&quot; href=&quot;./libs/og.css&quot;>
+&lt;div id=&quot;globus&quot;>&lt;/div>
+&lt;script type=&quot;module&quot;>
+
+  import { layer, Globe, terrain } from './libs/og.esm.js'
+  const { XYZ } = layer
+  const { GlobusTerrain } = terrain
+
+  const osm = new XYZ(&quot;OpenStreetMap&quot;, {
+    isBaseLayer: true,
+    url: &quot;//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png&quot;,
+    visibility: true,
+  })
+
+  const globus = new Globe({
+    target: &quot;globus&quot;, // a HTMLDivElement which its id is `globus`
+    name: &quot;Earth&quot;,
+    terrain: new GlobusTerrain(),
+    layers: [osm],
+    autoActivated: true,
+    viewExtent: [5.56707, 45.15679, 5.88834, 45.22260]
+  })
+
+&lt;/script>
+</code></pre>
+<h2>Frameworks integrations</h2>
+<p>OpenGlobus integrates well with front-end frameworks like React, Angular or Vuejs <a href="./framework-intergration.md">Read more here</a>.</p>
+<h2>Documentation</h2>
+<p>Check out the <a href="http://www.openglobus.org/examples.html">hosted examples</a>, or<br>
+the <a href="http://www.openglobus.org/api/">API documentation</a>.</p>
+<h2>Get Started to contribute</h2>
+<h3>Development</h3>
+<ol>
+<li>Clone repository.</li>
+<li>Run in the repo folder:</li>
+</ol>
+<pre class="prettyprint source lang-sh"><code>npm install
+# if you use yarn, you can run `yarn`
+yarn
+</code></pre>
+<h3>Build Library</h3>
+<p>Run</p>
+<pre class="prettyprint source lang-sh"><code>npm run build
+</code></pre>
+<p>Then, it will generate 5 files at <code>dist/@openglobus/</code>:</p>
+<ul>
+<li>og.umd.js</li>
+<li>og.umd.js.map</li>
+<li>og.esm.js</li>
+<li>og.esm.js.map</li>
+<li>og.css</li>
+</ul>
+<p>All JavaScript files are compressed by <code>terser</code> plugin.</p>
+<h3>Other scripts</h3>
+<p><code>npm run core</code> - build og.core (rendering engine) stand-alone</p>
+<p><code>npm run webgl</code> - build og.webgl (webgl wrap) stand-alone</p>
+<p><code>npm run api</code> - build <a href="https://www.openglobus.org/api/">api documentation</a> into /api folder</p>
+<p><code>npm run serve</code> - run local web server for develop and watch examples</p>
+<p><code>npm run font</code> - generate custom font atlas</p>
+<h2>Support the Project</h2>
+<p>There are many ways to contribute back to the project:</p>
+<ul>
+<li>Help us test new and existing features and report <a href="https://github.com/openglobus/openglobus/issues">bugs</a></li>
+<li>Help answer questions on the community <a href="https://groups.google.com/d/forum/openglobus">forum</a><br>
+and <a href="https://gitter.im/openglobus/og">chat</a></li>
+<li>⭐️ us on GitHub</li>
+<li>Spread the word about OpenGlobus on <a href="https://twitter.com/openglobus">social media</a></li>
+<li>Become a contributor</li>
+</ul>
+<h2>License</h2>
+<h1>MIT</h1></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.7</a> on Tue Jul 26 2022 11:15:45 GMT+0000 (Coordinated Universal Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>
