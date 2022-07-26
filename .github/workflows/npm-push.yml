@@ -5,6 +5,7 @@ on: [ push, pull_request ]
 jobs:
   init:
     runs-on: ubuntu-latest
+    environment: openglobus_env
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -26,19 +27,22 @@ jobs:
       - run: npm ci
 
   test:
-    uses: init
+    runs-on: ubuntu-latest
+    environment: openglobus_env
     needs: [ init ]
     steps:
       - run: npm test
 
   docs:
-    uses: init
+    runs-on: ubuntu-latest
+    environment: openglobus_env
     needs: [ init ]
     steps:
       - run: npm run api
 
   deploy_docs:
-    uses: init
+    runs-on: ubuntu-latest
+    environment: openglobus_env
     needs: [ docs ]
     steps:
       - name: Deploy
@@ -49,13 +53,15 @@ jobs:
       - run: npm run build
 
   generate_types:
-    uses: init
+    runs-on: ubuntu-latest
+    environment: openglobus_env
     needs: [ init ]
     steps:
       - run: npm run generate_types
 
   build:
-    uses: init
+    runs-on: ubuntu-latest
+    environment: openglobus_env
     needs: [ init ]
     steps:
       - run: npm run build
