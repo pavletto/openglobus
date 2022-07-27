@@ -20,4 +20,4 @@ runs:
          
     - name: Install dependencies
       shell: bash
-      run: npm ci
+      run: npm ci --prefer-offline --no-audit

@@ -1,6 +1,10 @@
 name: Triggers the workflow on push or pull request events
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   build:
@@ -12,7 +16,6 @@ jobs:
       - run: npm run build
 
   docs:
-    environment: openglobus_env
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +30,6 @@ jobs:
           publish_dir: ./api
 
   generate_types:
-    environment: openglobus_env
     runs-on: ubuntu-latest
 
     steps:
