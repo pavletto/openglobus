@@ -14,7 +14,7 @@
     "build": "rollup -c",
     "webgl": "rollup -c --environment entry:webgl",
     "core": "rollup -c --environment entry:core",
-    "test": "jest --env=jsdom --runInBand --ci",
+    "test": "jest --env=jsdom --runInBand --ci --coverage=false",
     "test_watch": "jest --env=jsdom --watch",
     "lint": "eslint -c ./.eslintrc.js src/og",
     "generate_types": "rm -rf types; tsc src/**/*.js --declaration --allowJs --emitDeclarationOnly --outDir types",
