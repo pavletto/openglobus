@@ -7,9 +7,6 @@
     "includePattern": ".+\\.js(doc)?$",
     "excludePattern": "(^|\\/|\\\\)_"
   },
-  "plugins": [
-    "./plugins/events"
-  ],
   "templates": {
     "cleverLinks": true,
     "monospaceLinks": true,
