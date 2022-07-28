@@ -9,7 +9,7 @@
   "style": "./css/og.css",
   "types": "./types/index.d.ts",
   "scripts": {
-    "api": "jsdoc -t ./jsdoc -r ./src/ -c ./jsdoc/conf.json -d ./api",
+    "api": "jsdoc -r ./src/ -c ./jsdoc.conf.json -d ./api",
     "serve": "ws",
     "build": "rollup -c",
     "webgl": "rollup -c --environment entry:webgl",
