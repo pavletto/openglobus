@@ -3,7 +3,7 @@ name: Build and publish package to npmjs everytime a new release is created
 # The workflow below runs anytime the release event with type created occurs.
 on:
   release:
-    types: [created]
+    types: [ created ]
 
 jobs:
   publish-npm:
@@ -16,15 +16,22 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/main
       - run: npm run build
-      
+
       - uses: papeloto/action-zip@v1
         with:
           files: dist
           dest: .zip
-          
-      - uses: ncipollo/release-action@v1
+
+      - name: Zip Folder
+        run: zip -r ${{ github.event.repository.name }}.zip ./dist/@openglobus -x "*.map"
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          artifacts: "dist/*.zip"
+          files: ${{ github.event.repository.name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 #       - run: npm publish
 #         env:
