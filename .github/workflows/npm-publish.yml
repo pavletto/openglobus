@@ -7,17 +7,25 @@ on:
 
 jobs:
   publish-npm:
+    
+    permissions:
+      contents: write
+    
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 16
-          registry-url: https://registry.npmjs.org/
-      - run: npm ci
-      - run: npm run api 
-      - run: npm run generate_types
+      - uses: ./.github/actions/main
       - run: npm run build
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+      
+      - uses: papeloto/action-zip@v1
+        with:
+          files: dist
+          dest: .zip
+          
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*.zip"
+
+#       - run: npm publish
+#         env:
+#           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
