@@ -1,11 +1,11 @@
-import * as shaders from "../shaders/label";
+import * as shaders from "../shaders/label/label";
 import {ALIGN, Label} from "./Label";
 import {BaseBillboardHandler} from "./BaseBillboardHandler";
 import {concatTypedArrays, spliceTypedArray} from "../utils/shared";
 import {EntityCollection} from "./EntityCollection";
 import {LOCK_FREE} from "./LabelWorker";
 import {Planet} from "../scene/Planet";
-import {WebGLBufferExt} from "../webgl/Handler";
+import type {WebGLBufferExt} from "../webgl/Handler";
 import {Vec3} from "../math/Vec3";
 import {Vec4} from "../math/Vec4";
 
@@ -253,10 +253,10 @@ class LabelHandler extends BaseBillboardHandler {
 
         gl.uniform1iv(shu.fontTextureArr, r.fontAtlas.samplerArr);
         gl.uniform4fv(shu.sdfParamsArr, r.fontAtlas.sdfParamsArr);
-        gl.uniformMatrix4fv(shu.viewMatrix, false, r.activeCamera!.getViewMatrix());
-        gl.uniformMatrix4fv(shu.projectionMatrix, false, r.activeCamera!.getProjectionMatrix());
-        gl.uniform3fv(shu.eyePositionHigh, r.activeCamera!.eyeHigh);
-        gl.uniform3fv(shu.eyePositionLow, r.activeCamera!.eyeLow);
+        gl.uniformMatrix4fv(shu.viewMatrix, false, r.activeCamera.getViewMatrix());
+        gl.uniformMatrix4fv(shu.projectionMatrix, false, r.activeCamera.getProjectionMatrix());
+        gl.uniform3fv(shu.eyePositionHigh, r.activeCamera.eyeHigh);
+        gl.uniform3fv(shu.eyePositionLow, r.activeCamera.eyeLow);
         gl.uniform3fv(shu.scaleByDistance, ec.scaleByDistance);
         gl.uniform1f(shu.opacity, ec._fadingOpacity);
         gl.uniform1f(shu.planetRadius, (ec.renderNode as Planet)._planetRadius2 || 0);
@@ -333,10 +333,10 @@ class LabelHandler extends BaseBillboardHandler {
 
         gl.disable(gl.CULL_FACE);
 
-        gl.uniformMatrix4fv(shu.viewMatrix, false, r.activeCamera!.getViewMatrix());
-        gl.uniformMatrix4fv(shu.projectionMatrix, false, r.activeCamera!.getProjectionMatrix());
-        gl.uniform3fv(shu.eyePositionHigh, r.activeCamera!.eyeHigh);
-        gl.uniform3fv(shu.eyePositionLow, r.activeCamera!.eyeLow);
+        gl.uniformMatrix4fv(shu.viewMatrix, false, r.activeCamera.getViewMatrix());
+        gl.uniformMatrix4fv(shu.projectionMatrix, false, r.activeCamera.getProjectionMatrix());
+        gl.uniform3fv(shu.eyePositionHigh, r.activeCamera.eyeHigh);
+        gl.uniform3fv(shu.eyePositionLow, r.activeCamera.eyeLow);
         gl.uniform3fv(shu.scaleByDistance, ec.scaleByDistance);
         gl.uniform1f(shu.opacity, ec._fadingOpacity);
         gl.uniform1f(shu.planetRadius, (rn as Planet)._planetRadius2 || 0);
@@ -415,7 +415,7 @@ class LabelHandler extends BaseBillboardHandler {
         label._isReady = false;
     }
 
-    public setText(index: number, text: string, fontIndex: number, align: number, isRTL: boolean = false) {
+    public setText(index: number, text: string, fontIndex: number, align: number, letterSpacing: number = 0, isRTL: boolean = false) {
 
         text = text.normalize('NFKC');
 
@@ -514,12 +514,12 @@ class LabelHandler extends BaseBillboardHandler {
             if (k && text[c + 1]) {
                 let kk = k[text[c + 1].charCodeAt(0)];
                 if (kk) {
-                    offset += m.nAdvance + kk;
+                    offset += m.nAdvance + kk + letterSpacing;
                 } else {
-                    offset += m.nAdvance;
+                    offset += m.nAdvance + letterSpacing;
                 }
             } else {
-                offset += m.nAdvance;
+                offset += m.nAdvance + letterSpacing;
             }
         }
 

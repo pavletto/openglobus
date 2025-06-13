@@ -5,7 +5,7 @@ import {LonLat} from '../LonLat';
 import {Program} from '../webgl/Program';
 import {Planet} from "../scene/Planet";
 import {doubleToTwoFloats2} from "../math/coder";
-import {WebGLBufferExt, WebGLTextureExt} from "../webgl/Handler";
+import type {WebGLBufferExt, WebGLTextureExt} from "../webgl/Handler";
 
 export class GeoImageCreator {
 
@@ -201,7 +201,7 @@ export class GeoImageCreator {
                           v_texCoords = texCoords; 
                           vec2 highDiff = cornersHigh - extentParamsHigh.xy;
                           vec2 lowDiff = cornersLow - extentParamsLow.xy;                                        
-                          gl_Position = vec4((-1.0 + (highDiff + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0), 0.0, 1.0); 
+                          gl_Position = vec4((-1.0 + (highDiff * step(1.0, length(highDiff)) + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0), 0.0, 1.0); 
                       }`,
             fragmentShader:
                 `precision highp float;

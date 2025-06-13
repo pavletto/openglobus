@@ -1,11 +1,15 @@
-import {Events, EventsHandler, EventCallback} from "../Events";
+import {Events} from "../Events";
+import type {EventsHandler, EventCallback} from "../Events";
 import {input} from "../input/input";
 import {KeyboardHandler} from "../input/KeyboardHandler";
-import {MouseHandler, MouseHandlerEvent, MouseEventExt} from "../input/MouseHandler";
+import {MouseHandler} from "../input/MouseHandler";
+import type {MouseHandlerEvent, MouseEventExt} from "../input/MouseHandler";
 import {Renderer} from "./Renderer";
-import {TouchEventExt, TouchHandler} from "../input/TouchHandler";
+import {TouchHandler} from "../input/TouchHandler";
+import type {TouchEventExt} from "../input/TouchHandler";
 import {Vec2} from "../math/Vec2";
-import {NumberArray3, Vec3} from "../math/Vec3";
+import {Vec3} from "../math/Vec3";
+import type {NumberArray3} from "../math/Vec3";
 
 export type RendererEventsHandler = RendererEvents & EventsHandler<RendererEventsType>;
 
@@ -14,7 +18,9 @@ export function createRendererEvents(renderer: Renderer) {
 }
 
 export type RendererEventsType = [
+    "changerelativecenter",
     "draw",
+    "drawtransparent",
     "postdraw",
     "resize",
     "resizeend",
@@ -117,6 +123,7 @@ export interface IMouseState extends IBaseInputState {
     wheelDelta: number;
     /** JavaScript mouse system event message. */
     sys: MouseEvent | null;
+    isTouchPad: boolean;
 }
 
 export interface ITouchState extends IBaseInputState {
@@ -140,22 +147,19 @@ const LB_M = 0b0001;
 const RB_M = 0b0010;
 const MB_M = 0b0100;
 
-let __skipFrames__ = 0;
-const MAX_SKIP_FRAMES_ON_BLACK = 15;
-
 const ISBLACK = (c: NumberArray3 | Uint8Array): boolean => !(c[0] || c[1] || c[2]);
 const NOTBLACK = (c: NumberArray3 | Uint8Array): boolean => !!(c[0] || c[1] || c[2]);
 
 /**
  * Stores current picking rgb color.
- * @type {Array.<number>} - (exactly 3 entries)
+ * @type {Array.<number>}
  */
 let _currPickingColor = new Uint8Array(4);
 let _tempCurrPickingColor = new Uint8Array(4);
 
 /**
  * Stores previous picked rgb color.
- * @type {Array.<number>} - (exactly 3 entries)
+ * @type {Array.<number>}
  */
 let _prevPickingColor = new Uint8Array(4);
 
@@ -280,7 +284,8 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
             wheelDelta: 0,
             sys: null,
             pickingObject: null,
-            renderer: renderer
+            renderer: renderer,
+            isTouchPad: false
         };
 
         this.touchState = {
@@ -306,7 +311,7 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
             renderer: renderer
         };
 
-        this._isMouseInside = false;
+        this._isMouseInside = true;
         this._entityPickingEventsActive = true;
 
         this._dblTchCoords = new Vec2();
@@ -426,6 +431,7 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
      * @protected
      */
     protected onMouseWheel(event: MouseEventExt) {
+        this.mouseState.isTouchPad = event.isTouchPad || false;
         this.mouseState.sys = event;
         this.mouseState.wheelDelta = event.wheelDelta || 0;
     }
@@ -732,12 +738,6 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
                 r.readPickingColor(ms.nx, 1 - ms.ny, t);
             }
 
-            // current is black
-            if (ISBLACK(t) && __skipFrames__++ < MAX_SKIP_FRAMES_ON_BLACK) {
-                return;
-            }
-            __skipFrames__ = 0;
-
             p[0] = c[0];
             p[1] = c[1];
             p[2] = c[2];
@@ -977,9 +977,7 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
         if (ts.touchStart) {
             let r = this.renderer;
 
-            r.pickingFramebuffer!.activate();
-            r.pickingFramebuffer!.readPixels(_currPickingColor, ts.nx, 1.0 - ts.ny, 1);
-            r.pickingFramebuffer!.deactivate();
+            r.readPickingColor(ts.nx, 1 - ts.ny, _currPickingColor);
 
             let co = r.getPickingObjectArr<any>(_currPickingColor);
             tpo = ts.pickingObject = co;
@@ -1024,11 +1022,19 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
 }
 
 const RENDERER_EVENTS: RendererEventsType = [
+    "changerelativecenter",
+
     /**
      * Triggered before scene frame is rendered(before render nodes).
      * @event og.RendererEvents#draw
      */
     "draw",
+
+    /**
+     * Triggered after all transparent object are drawn
+     * @event og.RendererEvents#drawtransparent
+     */
+    "drawtransparent",
 
     /**
      * Triggered after scene frame is rendered(after render nodes).

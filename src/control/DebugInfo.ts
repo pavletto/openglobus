@@ -1,8 +1,9 @@
-import {Control, IControlParams} from "./Control";
+import {Control, type IControlParams} from "./Control";
 import {Dialog} from "../ui/Dialog";
 import {ToggleButton} from "../ui/ToggleButton";
 import {GlobusTerrain} from "../terrain/GlobusTerrain";
 import {CanvasTiles} from "../layer/CanvasTiles";
+import {DEGREES} from "../math";
 
 const ICON_LOCK_BUTTON_SVG = `<?xml version="1.0" encoding="utf-8"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
@@ -104,6 +105,7 @@ export class DebugInfo extends Control {
         this._canvasTiles = new CanvasTiles("Tile grid", {
             visibility: true,
             isBaseLayer: false,
+            hideInLayerSwitcher: true,
             drawTile: function (material: any, applyCanvas: any) {
 
                 //
@@ -126,27 +128,27 @@ export class DebugInfo extends Control {
 
                 let size;
 
-                if (material.segment.isPole) {
-                    let ext = material.segment.getExtentLonLat();
-
-                    ctx.fillStyle = 'black';
-                    ctx.font = 'normal ' + 29 + 'px Verdana';
-
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${ext.northEast.lon.toFixed(3)} ${ext.northEast.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 + 20);
-                    ctx.fillText(`${ext.southWest.lon.toFixed(3)} ${ext.southWest.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 - 20);
+                // if (material.segment.isPole) {
+                //     let ext = material.segment.getExtentLonLat();
+                //
+                //     ctx.fillStyle = 'black';
+                //     ctx.font = 'normal ' + 29 + 'px Verdana';
+                //
+                //     ctx.textAlign = 'center';
+                //     ctx.fillText(`${ext.northEast.lon.toFixed(3)} ${ext.northEast.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 + 20);
+                //     ctx.fillText(`${ext.southWest.lon.toFixed(3)} ${ext.southWest.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 - 20);
+                // } else {
+                //Draw text
+                if (material.segment.tileZoom > 14) {
+                    size = "26";
                 } else {
-                    //Draw text
-                    if (material.segment.tileZoom > 14) {
-                        size = "26";
-                    } else {
-                        size = "32";
-                    }
-                    ctx.fillStyle = 'black';
-                    ctx.font = 'normal ' + size + 'px Verdana';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(material.segment.tileX + "," + material.segment.tileY + "," + material.segment.tileZoom, cnv.width / 2, cnv.height / 2);
+                    size = "32";
                 }
+                ctx.fillStyle = 'black';
+                ctx.font = 'normal ' + size + 'px Verdana';
+                ctx.textAlign = 'center';
+                ctx.fillText(material.segment.tileX + "," + material.segment.tileY + "," + material.segment.tileZoom, cnv.width / 2, cnv.height / 2);
+                //}
 
                 //Draw canvas tile
                 applyCanvas(cnv);
@@ -201,6 +203,10 @@ export class DebugInfo extends Control {
                     frame: () => p!._renderedNodes.length
                 },
                 {
+                    label: "Planet._fadingNodes",
+                    frame: () => p._fadingNodes.size
+                },
+                {
                     label: "createdNodes",
                     frame: () => p._createdNodesCount
                 },
@@ -221,15 +227,14 @@ export class DebugInfo extends Control {
                     frame: () => p.getViewExtent().toString()
                 },
                 {
-                    label: "height/alt (km)",
-                    frame: () =>
-                        `<div style="width:190px">${(p.camera._lonLat.height / 1000.0).toFixed(2) +
-                        " / " +
-                        (p.camera.getAltitude() / 1000.0).toFixed(2)}</div>`
-                },
-                {
-                    label: "cam.slope",
-                    frame: () => p.camera.slope.toFixed(3)
+                    label: "Mouse distance, m",
+                    frame: () => {
+                        let cart = p.getCartesianFromMouseTerrain();
+                        if (cart) {
+                            return p.camera.eye.distance(cart).toFixed(3);
+                        }
+                        return "";
+                    }
                 },
                 {
                     label: "lodSize",
@@ -243,6 +248,37 @@ export class DebugInfo extends Control {
                         </div> <div style="float: left">
                         ${Math.round(1000.0 / p.renderer!.handler.deltaTime)}
                         </div></div>`
+                },
+                {
+                    label: "-------------------------"
+                },
+                {
+                    label: "Pitch, deg",
+                    frame: () => (p.camera.getPitch() * DEGREES).toFixed(2)
+                },
+                {
+                    label: "Yaw, deg",
+                    frame: () => (p.camera.getYaw() * DEGREES).toFixed(2)
+                },
+                {
+                    label: "Roll, deg",
+                    frame: () => (p.camera.getRoll() * DEGREES).toFixed(2)
+                },
+                {
+                    label: "Lon, Lat",
+                    frame: () =>
+                        `<div style="width:190px">${(p.camera._lonLat.lon).toFixed(7)}, ${(p.camera._lonLat.lon).toFixed(7)}</div>`
+                },
+                {
+                    label: "height/alt, m",
+                    frame: () =>
+                        `<div style="width:190px">${(p.camera._lonLat.height).toFixed(2) +
+                        " / " +
+                        (p.camera.getAltitude()).toFixed(2)}</div>`
+                },
+                {
+                    label: "cam.slope",
+                    frame: () => p.camera.slope.toFixed(3)
                 },
                 {
                     label: "-------------------------"
@@ -319,9 +355,10 @@ export class DebugInfo extends Control {
     }
 
     protected _frame() {
-        for (let i = 0; i < this._watch.length; i++) {
-            let w = this._watch[i];
-            w.valEl!.innerHTML = w.frame ? String(w.frame()) : "";
-        }
+        this._watch.forEach((w) => {
+            if (w.valEl) {
+                w.valEl.innerHTML = w.frame ? String(w.frame()) : "";
+            }
+        });
     }
 }

@@ -2,24 +2,26 @@ import * as mercator from "../mercator";
 import * as quadTree from "../quadTree/quadTree";
 import {Extent} from "../Extent";
 import {Handler} from "../webgl/Handler";
+import type {WebGLBufferExt} from "../webgl/Handler";
 import {doubleToTwoFloatsV2} from "../math/coder";
 import {Vector} from "../layer/Vector";
-import {NumberArray2, Vec2} from "../math/Vec2";
+import {Vec2} from "../math/Vec2";
+import type {NumberArray2} from "../math/Vec2";
 import {Node} from "../quadTree/Node";
 import {Vec3} from "../math/Vec3";
 import {Vec4} from "../math/Vec4";
-import {
+import type {
     CoordinatesType,
-    GeometryType,
     Geometry,
-    IMultiLineStringCoordinates,
     ILineStringCoordinates,
+    IMultiLineStringCoordinates,
     IMultiPolygonCoordinates,
     IPolygonCoordinates
 } from "./Geometry";
 
+import {GeometryTypeEnum} from "./Geometry";
+
 import {earcut, flatten} from "../utils/earcut";
-import {WebGLBufferExt} from "../webgl/Handler";
 
 const POLYVERTICES_BUFFER = 0;
 const POLYINDEXES_BUFFER = 1;
@@ -452,7 +454,7 @@ class GeometryHandler {
             geometry._lineVerticesLowMerc = [];
 
             if ((geometry._coordinates as IPolygonCoordinates)[0].length) {
-                if (geometry.type === GeometryType.POLYGON) {
+                if (geometry.type === GeometryTypeEnum.POLYGON) {
                     let coordinates = geometry._coordinates as IPolygonCoordinates;
                     let ci: IPolygonCoordinates = [];
                     for (let j = 0; j < coordinates.length; j++) {
@@ -531,7 +533,7 @@ class GeometryHandler {
                     geometry._lineColorsLength = this._lineColors.length - geometry._lineColorsHandlerIndex;
                     geometry._lineThicknessLength = this._lineThickness.length - geometry._lineThicknessHandlerIndex;
 
-                } else if (geometry.type === GeometryType.MULTIPOLYGON) {
+                } else if (geometry.type === GeometryTypeEnum.MULTIPOLYGON) {
 
                     let coordinates = geometry._coordinates as IMultiPolygonCoordinates;
                     let vertices: number[] = [],
@@ -627,7 +629,7 @@ class GeometryHandler {
                     geometry._lineColorsLength = this._lineColors.length - geometry._lineColorsHandlerIndex;
                     geometry._lineThicknessLength = this._lineThickness.length - geometry._lineThicknessHandlerIndex;
 
-                } else if (geometry.type === GeometryType.LINESTRING) {
+                } else if (geometry.type === GeometryTypeEnum.LINESTRING) {
 
                     let coordinates: ILineStringCoordinates = geometry._coordinates as ILineStringCoordinates;
                     let ci = new Array(coordinates.length);
@@ -669,7 +671,7 @@ class GeometryHandler {
                     geometry._lineColorsLength = this._lineColors.length - geometry._lineColorsHandlerIndex;
                     geometry._lineThicknessLength = this._lineThickness.length - geometry._lineThicknessHandlerIndex;
 
-                } else if (geometry.type === GeometryType.MULTILINESTRING) {
+                } else if (geometry.type === GeometryTypeEnum.MULTILINESTRING) {
 
                     let coordinates = geometry._coordinates as IMultiLineStringCoordinates;
                     let ci: IMultiLineStringCoordinates = [];
@@ -1176,6 +1178,77 @@ class GeometryHandler {
             4,
             this._lineStrokeColors.length / 4
         );
+    }
+
+    public clear() {
+        this._geometries = [];
+        this._polyVerticesHighMerc = [];
+        this._polyVerticesLowMerc = [];
+        this._polyIndexes = [];
+        this._polyColors = [];
+        this._polyPickingColors = [];
+
+        this._lineVerticesHighMerc = [];
+        this._lineVerticesLowMerc = [];
+        this._lineOrders = [];
+        this._lineIndexes = [];
+        this._lineColors = [];
+        this._linePickingColors = [];
+        this._lineThickness = [];
+        this._lineStrokeColors = [];
+        this._lineStrokes = [];
+
+        this._deleteBuffers();
+
+        this._polyVerticesHighBufferMerc = null;
+        this._polyVerticesLowBufferMerc = null;
+        this._polyIndexesBuffer = null;
+        this._polyColorsBuffer = null;
+        this._polyPickingColorsBuffer = null;
+
+        this._lineVerticesHighBufferMerc = null;
+        this._lineVerticesLowBufferMerc = null;
+        this._lineIndexesBuffer = null;
+        this._lineOrdersBuffer = null;
+        this._lineColorsBuffer = null;
+        this._linePickingColorsBuffer = null;
+        this._lineThicknessBuffer = null;
+        this._lineStrokeColorsBuffer = null;
+        this._lineStrokesBuffer = null;
+
+        this._updatedGeometryArr = [];
+        this._updatedGeometry = {};
+
+        this._removeGeometryExtentArr = [];
+        this._removeGeometryExtents = {};
+
+        this.refresh();
+    }
+
+    public _deleteBuffers() {
+        if (this._layer._planet && this._layer._planet.renderer) {
+
+            let h = this._layer._planet.renderer.handler,
+                gl = h.gl!;
+
+            if (gl) {
+                gl.deleteBuffer(this._polyVerticesHighBufferMerc!);
+                gl.deleteBuffer(this._polyVerticesLowBufferMerc!);
+                gl.deleteBuffer(this._polyIndexesBuffer!);
+                gl.deleteBuffer(this._polyColorsBuffer!);
+                gl.deleteBuffer(this._polyPickingColorsBuffer!);
+
+                gl.deleteBuffer(this._lineVerticesHighBufferMerc);
+                gl.deleteBuffer(this._lineVerticesLowBufferMerc);
+                gl.deleteBuffer(this._lineIndexesBuffer);
+                gl.deleteBuffer(this._lineOrdersBuffer);
+                gl.deleteBuffer(this._lineColorsBuffer);
+                gl.deleteBuffer(this._linePickingColorsBuffer);
+                gl.deleteBuffer(this._lineThicknessBuffer);
+                gl.deleteBuffer(this._lineStrokeColorsBuffer);
+                gl.deleteBuffer(this._lineStrokesBuffer);
+            }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
-import {Control, IControlParams} from "./Control";
+import {Control} from "./Control";
+import type {IControlParams} from "./Control";
 import {Clock} from "../Clock";
 import {getSunPosition} from "../astro/earth";
 import {LightSource} from "../light/LightSource";
@@ -40,7 +41,7 @@ export class Sun extends Control {
 
         this.offsetHorizontal = options.offsetHorizontal || 5000000;
 
-        this.sunlight = new LightSource("Sun", {
+        this.sunlight = new LightSource({
             ambient: new Vec3(0.15, 0.15, 0.25),
             diffuse: new Vec3(0.9, 0.9, 0.8),
             specular: new Vec3(0.1, 0.1, 0.06),
@@ -114,14 +115,14 @@ export class Sun extends Control {
                 let n = cam.eye.normal(),
                     u = cam.getForward();
 
-                u.scale(Math.sign(cam._u.dot(n))); // up
+                u.scale(Math.sign(cam.getUp().dot(n))); // up
 
                 if (cam.slope > 0.99) {
-                    u = cam._u;
+                    u = cam.getUp();
                 }
 
                 let tu = Vec3.proj_b_to_plane(u, n, u).normalize().scale(this.offsetVertical);
-                let tr = Vec3.proj_b_to_plane(cam._r, n, cam._r)
+                let tr = Vec3.proj_b_to_plane(cam.getRight(), n, cam.getRight())
                     .normalize()
                     .scale(this.offsetHorizontal); // right
 
@@ -129,7 +130,7 @@ export class Sun extends Control {
                 let pos = cam.eye.add(d);
 
                 if (this._k > 0) {
-                    this._k -= 0.01;
+                    this._k -= 0.001;
                     let rot = Quat.getRotationBetweenVectors(
                         this.sunlight._position.normal(),
                         pos.normal()
@@ -142,7 +143,7 @@ export class Sun extends Control {
             } else {
                 this._k = 1;
                 if (this._f > 0) {
-                    this._f -= 0.01;
+                    this._f -= 0.001;
                     let rot = Quat.getRotationBetweenVectors(
                         this.sunlight._position.normal(),
                         getSunPosition(this._currDate).normal()

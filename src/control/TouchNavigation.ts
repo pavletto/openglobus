@@ -1,4 +1,5 @@
-import {Control, IControlParams} from "./Control";
+import {Control} from "./Control";
+import type {IControlParams} from "./Control";
 import {Key} from "../Lock";
 import {LonLat} from "../LonLat";
 import {math} from "../index";
@@ -7,7 +8,8 @@ import {Ray} from "../math/Ray";
 import {Sphere} from "../bv/Sphere";
 import {Vec2} from "../math/Vec2";
 import {Vec3} from "../math/Vec3";
-import {ITouchState} from "../renderer/RendererEvents";
+import type {ITouchState} from "../renderer/RendererEvents";
+import {Plane} from "../math/Plane";
 
 interface ITouchNavigationParams extends IControlParams {
 
@@ -252,14 +254,14 @@ export class TouchNavigation extends Control {
 
                 let d = distanceToPointOnEarth * -(1 - scale);
                 cam.eye.addA(cam.getForward().scale(d));
-                cam.rotateAround(-deltaAngle, false, this.pointOnEarth, this.earthUp);
+                cam.rotateAround(-deltaAngle, false, this.pointOnEarth, this.earthUp!);
 
                 const panCur = t0.vec.add(t1.vec).scale(0.5);
                 const panPrev = t0.vecPrev.add(t1.vecPrev).scale(0.5);
                 const panOffset = panCur.sub(panPrev).scale(-1);
                 var l = 0.5 / distanceToPointOnEarth * cam._lonLat.height * math.RADIANS;
                 if (l > 0.003) l = 0.003;
-                cam.rotateHorizontal(l * -panOffset.x, false, this.pointOnEarth, this.earthUp);
+                cam.rotateHorizontal(l * -panOffset.x, false, this.pointOnEarth, this.earthUp!);
                 cam.rotateVertical(l * -panOffset.y, this.pointOnEarth);
 
                 cam.checkTerrainCollision();
@@ -291,19 +293,20 @@ export class TouchNavigation extends Control {
                     );
                     let rot = this.qRot;
                     cam.eye = rot.mulVec3(cam.eye);
-                    cam._r = rot.mulVec3(cam._r);
-                    cam._u = rot.mulVec3(cam._u);
-                    cam._b = rot.mulVec3(cam._b);
+                    cam.rotate(rot);
+                    // cam._r = rot.mulVec3(cam._r);
+                    // cam._u = rot.mulVec3(cam._u);
+                    // cam._b = rot.mulVec3(cam._b);
                     cam.checkTerrainCollision();
                     cam.update();
                     this.scaleRot = 1;
                 } else {
                     let p0 = t.grabbedPoint,
-                        p1 = Vec3.add(p0, cam._u),
-                        p2 = Vec3.add(p0, p0.normal());
+                        p1 = Vec3.add(p0, cam.getUp()),
+                        p2 = Vec3.add(p0, p0.getNormal());
                     let dir = cam.unproject(t.x, t.y);
                     let px = new Vec3();
-                    if (new Ray(cam.eye, dir).hitPlane(p0, p1, p2, px) === Ray.INSIDE) {
+                    if (new Ray(cam.eye, dir).hitPlaneRes(Plane.fromPoints(p0, p1, p2), px) === Ray.INSIDE) {
                         cam.eye = this._eye0.addA(px.subA(p0).negate());
                         cam.checkTerrainCollision();
                         cam.update();
@@ -343,9 +346,10 @@ export class TouchNavigation extends Control {
                 this.scaleRot = 0;
             }
             cam.eye = rot.mulVec3(cam.eye);
-            cam._r = rot.mulVec3(cam._r);
-            cam._u = rot.mulVec3(cam._u);
-            cam._b = rot.mulVec3(cam._b);
+            cam.rotate(rot);
+            // cam._r = rot.mulVec3(cam._r);
+            // cam._u = rot.mulVec3(cam._u);
+            // cam._b = rot.mulVec3(cam._b);
             cam.checkTerrainCollision();
             cam.update();
         }

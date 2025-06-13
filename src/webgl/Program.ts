@@ -1,7 +1,8 @@
 import {cons} from "../cons";
-import {ProgramVariable, variableHandlers} from "./variableHandlers";
+import type {ProgramVariable} from "./variableHandlers";
+import {variableHandlers} from "./variableHandlers";
 import {types, typeStr} from "./types";
-import {WebGLBufferExt} from "./Handler";
+import type {WebGLBufferExt} from "./Handler";
 
 const itemTypes: string[] = ["BYTE", "SHORT", "UNSIGNED_BYTE", "UNSIGNED_SHORT", "FLOAT", "HALF_FLOAT"];
 
@@ -13,6 +14,20 @@ type ProgramMaterial = {
     vertexShader: string;
     fragmentShader: string
 };
+
+function injectWebGL2Define(src: string, isWebGL2: boolean): string {
+    if (!isWebGL2) return src;
+
+    const lines = src.split('\n');
+    const versionIndex = lines.findIndex(line => line.startsWith('#version'));
+
+    if (versionIndex !== -1) {
+        lines.splice(versionIndex + 1, 0, '#define WEBGL2');
+        return lines.join('\n');
+    } else {
+        return src;
+    }
+}
 
 /**
  * Represents more comfortable using WebGL shader program.
@@ -228,7 +243,8 @@ class Program {
 
         if (!this.gl) return false;
 
-        this.gl.shaderSource(shader, src);
+        const isWebGL2 = this.gl instanceof WebGL2RenderingContext;
+        this.gl.shaderSource(shader, injectWebGL2Define(src, isWebGL2));
         this.gl.compileShader(shader);
         if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
             cons.logErr(
@@ -341,10 +357,6 @@ class Program {
                     this.drawElementsInstanced = ext.drawElementsInstancedANGLE.bind(ext);
                 }
             }
-            // this.drawElementsInstanced =
-            //     gl.drawElementsInstanced ?
-            //         gl.drawElementsInstanced.bind(gl) :
-            //         gl.getExtension('ANGLE_instanced_arrays').drawElementsInstancedANGLE.bind(gl.getExtension('ANGLE_instanced_arrays'));
         }
 
         if (!this.vertexAttribDivisor) {
@@ -356,10 +368,6 @@ class Program {
                     this.vertexAttribDivisor = ext.vertexAttribDivisorANGLE.bind(ext);
                 }
             }
-            // this.vertexAttribDivisor =
-            //     gl.vertexAttribDivisor ?
-            //         gl.vertexAttribDivisor.bind(gl) :
-            //         gl.getExtension('ANGLE_instanced_arrays').vertexAttribDivisorANGLE.bind(gl.getExtension('ANGLE_instanced_arrays'));
         }
 
 

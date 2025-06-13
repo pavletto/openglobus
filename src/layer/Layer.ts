@@ -1,23 +1,25 @@
 import * as mercator from "../mercator";
 import * as utils from "../utils/shared";
 import {createColorRGB} from "../utils/shared";
-import {createEvents, Events, EventsHandler} from "../Events";
+import {createEvents} from "../Events";
+import type {EventsHandler} from "../Events";
 import {Extent} from "../Extent";
 import {LonLat} from "../LonLat";
 import {Node} from "../quadTree/Node";
 import {Material} from "./Material";
 import {Planet} from "../scene/Planet";
 import {Segment} from "../segment/Segment";
-import {Vec3, NumberArray3} from "../math/Vec3";
-import {NumberArray4} from "../math/Vec4";
-import {IDefaultTextureParams, WebGLTextureExt} from "../webgl/Handler";
+import {Vec3} from "../math/Vec3";
+import type {NumberArray3} from "../math/Vec3";
+import type {NumberArray4} from "../math/Vec4";
+import type {IDefaultTextureParams} from "../webgl/Handler";
 
-const FADING_RATIO = 15.8;
+const FADING_RATIO = 30;
 
 export interface ILayerParams {
     properties?: any;
     labelMaxLetters?: number;
-    displayInLayerSwitcher?: boolean;
+    hideInLayerSwitcher?: boolean;
     opacity?: number;
     minZoom?: number;
     maxZoom?: number;
@@ -38,6 +40,7 @@ export interface ILayerParams {
     specular?: string | NumberArray3 | Vec3;
     shininess?: number;
     nightTextureCoefficient?: number;
+    iconSrc?: string | null;
 }
 
 /**
@@ -53,11 +56,11 @@ export interface ILayerParams {
  * @param {string} [options.attribution] - Layer attribution that displayed in the attribution area on the screen.
  * @param {boolean} [options.isBaseLayer=false] - This is a base layer.
  * @param {boolean} [options.visibility=true] - Layer visibility.
- * @param {boolean} [options.displayInLayerSwitcher=true] - Presence of layer in dialog window of LayerSwitcher control.
+ * @param {boolean} [options.hideInLayerSwitcher=false] - Presence of layer in dialog window of LayerSwitcher control.
  * @param {boolean} [options.isSRGB=false] - Layer image webgl internal format.
  * @param {Extent} [options.extent=[[-180.0, -90.0], [180.0, 90.0]]] - Visible extent.
  * @param {string} [options.textureFilter="anisotropic"] - Image texture filter. Available values: "nearest", "linear", "mipmap" and "anisotropic".
- *
+ * @param {string} [options.icon] - Icon for LayerSwitcher
  * @fires EventsHandler<LayerEventsList>#visibilitychange
  * @fires EventsHandler<LayerEventsList>#add
  * @fires EventsHandler<LayerEventsList>#remove
@@ -112,7 +115,7 @@ class Layer {
 
     public properties: any;
 
-    public displayInLayerSwitcher: boolean;
+    public hideInLayerSwitcher: boolean;
 
     /**
      * Minimal zoom level when layer is visible.
@@ -230,9 +233,13 @@ class Layer {
 
     public isVector: boolean = false;
 
+    protected _iconSrc: string | null;
+
     constructor(name?: string | null, options: ILayerParams = {}) {
 
         this.__id = Layer.__counter__++;
+
+        this._iconSrc = options.iconSrc || null;
 
         this.events = createEvents<LayerEventsList>(LAYER_EVENTS, this);
 
@@ -240,16 +247,15 @@ class Layer {
 
         this.properties = options.properties || {};
 
-        this.displayInLayerSwitcher =
-            options.displayInLayerSwitcher !== undefined ? options.displayInLayerSwitcher : true;
+        this.hideInLayerSwitcher = options.hideInLayerSwitcher || false;
 
         this._hasImageryTiles = true;
 
-        this._opacity = options.opacity || 1.0;
+        this._opacity = options.opacity != undefined ? options.opacity : 1.0;
 
         this.minZoom = options.minZoom || 0;
 
-        this.maxZoom = options.maxZoom || 50;
+        this.maxZoom = options.maxZoom != undefined ? options.maxZoom : 50;
 
         this._planet = null;
 
@@ -270,7 +276,7 @@ class Layer {
         this._fadingFactor = this._opacity / FADING_RATIO;
 
         if (this._fading) {
-            this._fadingOpacity = this._visibility ? this._opacity : 0.0;
+            this._fadingOpacity = 0;
         } else {
             this._fadingOpacity = this._opacity;
         }
@@ -333,6 +339,15 @@ class Layer {
         this.nightTextureCoefficient = options.nightTextureCoefficient || 1.0;
     }
 
+    public get iconSrc(): string | null {
+        return this._iconSrc;
+    }
+
+    public set iconSrc(src: string | null) {
+        // @todo: add event
+        this._iconSrc = src;
+    }
+
     public set diffuse(rgb: string | NumberArray3 | Vec3 | null | undefined) {
         if (rgb) {
             let vec = createColorRGB(rgb);
@@ -378,8 +393,8 @@ class Layer {
         };
     }
 
-    static getTileIndex(...arr: number[]): string {
-        return arr.join("_");
+    static getTileIndex(x: number, y: number, z: number, tileGroup: number): string {
+        return `${tileGroup}::${x}_${y}_${z}`;
     }
 
     public get instanceName(): string {
@@ -396,7 +411,7 @@ class Layer {
                 if (opacity > this._opacity) {
                     this._fadingFactor = (opacity - this._opacity) / FADING_RATIO;
                 } else if (opacity < this._opacity) {
-                    this._fadingFactor = (opacity - this._opacity) / FADING_RATIO;
+                    this._fadingFactor = (this._opacity - opacity) / FADING_RATIO;
                 }
             } else {
                 this._fadingOpacity = opacity;
@@ -730,7 +745,6 @@ class Layer {
             for (let i = 0, len = p.quadTreeStrategy.quadTreeList.length; i < len; i++) {
                 this._preLoadRecursive(p.quadTreeStrategy.quadTreeList[i], maxZoom);
             }
-
         }
     }
 
@@ -784,6 +798,23 @@ class Layer {
         return this._extentMerc;
     }
 
+
+    /**
+     * Fly extent.
+     * @public
+     */
+    public flyExtent() {
+        this._planet?.flyExtent(this.getExtent());
+    }
+
+    /**
+     * View extent.
+     * @public
+     */
+    public viewExtent() {
+        this._planet?.viewExtent(this.getExtent());
+    }
+
     /**
      * Special correction of the whole globe extent.
      * @protected
@@ -833,8 +864,11 @@ class Layer {
 
             return false;
         } else {
-            this._fadingOpacity = 0.0;
-            return !this._visibility;
+            this._fadingOpacity -= this._fadingFactor;
+            if (this._fadingOpacity <= 0) {
+                this._fadingOpacity = 0.0;
+            }
+            return false;
         }
     }
 
@@ -843,31 +877,7 @@ class Layer {
     }
 
     public redraw() {
-        if (this._planet) {
-
-            this._planet.quadTreeStrategy.clearLayerMaterial(this);
-
-            // this._planet._quadTree.traverseTree((n: Node) => {
-            //         if (n.segment.materials[this.__id]) {
-            //             n.segment.materials[this.__id].clear();
-            //         }
-            //     }
-            // );
-            //
-            // this._planet._quadTreeNorth.traverseTree((n: Node) => {
-            //         if (n.segment.materials[this.__id]) {
-            //             n.segment.materials[this.__id].clear();
-            //         }
-            //     }
-            // );
-            //
-            // this._planet._quadTreeSouth.traverseTree((n: Node) => {
-            //         if (n.segment.materials[this.__id]) {
-            //             n.segment.materials[this.__id].clear();
-            //         }
-            //     }
-            // );
-        }
+        this._planet?.quadTreeStrategy.clearLayerMaterial(this);
     }
 
     public abortMaterialLoading(material: Material) {

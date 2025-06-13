@@ -1,8 +1,9 @@
 import {getDefault, stringTemplate} from '../utils/shared';
 import {Button} from './Button';
 import {CLOSE_ICON} from './icons';
-import {IViewParams, View, ViewEventsList} from './View';
-import {EventsHandler} from "../Events";
+import {View} from './View';
+import type {IViewParams, ViewEventsList} from './View';
+import type {EventsHandler} from "../Events";
 
 export interface IDialogParams extends IViewParams {
     title?: string;
@@ -11,15 +12,16 @@ export interface IDialogParams extends IViewParams {
     width?: number;
     height?: number;
     left?: number;
+    right?: number;
     top?: number;
     minHeight?: number;
     maxHeight?: number;
     minWidth?: number;
     maxWidth?: number;
-    useHide?: boolean;
+    useHide?: boolean;     // Using hide instead of remove when close
 }
 
-type DialogEventsList = ["resize", "focus", "visibility", "dragstart", "dragend"];
+export type DialogEventsList = ["resize", "focus", "visibility", "dragstart", "dragend"];
 
 const DIALOG_EVENTS: DialogEventsList = ["resize", "focus", "visibility", "dragstart", "dragend"];
 
@@ -52,6 +54,8 @@ class Dialog<M> extends View<M> {
 
     protected _visibility: boolean;
 
+    protected _right: number | null;
+
     constructor(options: IDialogParams = {}) {
         super({
             template: stringTemplate(TEMPLATE, {
@@ -59,7 +63,7 @@ class Dialog<M> extends View<M> {
                 display: getDefault(options.visible, true) ? "flex" : "none",
                 resize: getDefault(options.resizable, true) ? "both" : "none",
                 width: options.width || 300,
-                height: options.height ? `height:${options.height || 200}` : "",
+                height: options.height ? `height: ${options.height || 200}px` : "",
                 left: options.left || 0,
                 top: options.top || 0,
                 minHeight: options.minHeight ? `${options.minHeight}px` : 'unset',
@@ -89,6 +93,8 @@ class Dialog<M> extends View<M> {
         this.useHide = options.useHide || false;
 
         this._visibility = getDefault(options.visible, true);
+
+        this._right = options.right != undefined ? options.right : null;
     }
 
     public setContainer(htmlStr: string) {
@@ -120,6 +126,25 @@ class Dialog<M> extends View<M> {
         this.$buttons = this.select(".og-ddialog-header__buttons");
         this._initEvents();
         this._initButtons();
+
+        if (this._right != null) {
+            this.el!.style.visibility = "hidden";
+            const observer = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.el!.style.visibility = "visible";
+                        //@ts-ignore
+                        if (this.el!.parentNode) {
+                            this.setPosition((this.el!.parentNode as HTMLElement).clientWidth - this.el!.clientWidth - this._right!);
+                            obs.disconnect();
+                        }
+                    }
+                });
+            });
+
+            observer.observe(this.el!);
+        }
+
         return this;
     }
 
@@ -154,6 +179,10 @@ class Dialog<M> extends View<M> {
         } else {
             this.hide();
         }
+    }
+
+    public getVisibility(): boolean {
+        return this._visibility;
     }
 
     protected _initButtons() {

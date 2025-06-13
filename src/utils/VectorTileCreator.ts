@@ -19,7 +19,7 @@ export class VectorTileCreator {
     protected _queue: Material[];
     protected _handler: Handler | null;
 
-    constructor(planet: Planet, width: number = 512, height: number = 512) {
+    constructor(planet: Planet, width: number = 256, height: number = 256) {
         this._width = width;
         this._height = height;
         this._planet = planet;
@@ -75,8 +75,8 @@ export class VectorTileCreator {
                 
                 vec2 proj(vec2 coordHigh, vec2 coordLow) {
                     vec2 highDiff = coordHigh - extentParamsHigh.xy;
-                    vec2 lowDiff = coordLow - extentParamsLow.xy;
-                    return vec2(-1.0 + (highDiff + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0);
+                    vec2 lowDiff = coordLow - extentParamsLow.xy;                    
+                    return vec2(-1.0 + (highDiff * step(1.0, length(highDiff)) + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0);
                 }
                 
                 void main(){
@@ -171,7 +171,7 @@ export class VectorTileCreator {
                 vec2 proj(vec2 coordHigh, vec2 coordLow) {
                     vec2 highDiff = coordHigh - extentParamsHigh.xy;
                     vec2 lowDiff = coordLow - extentParamsLow.xy;
-                    return vec2(-1.0 + (highDiff + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0);
+                    return vec2(-1.0 + (highDiff * step(1.0, length(highDiff)) + lowDiff) * extentParamsHigh.zw) * vec2(1.0, -1.0);
                 }
 
                 void main() { 

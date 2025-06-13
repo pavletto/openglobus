@@ -1,9 +1,9 @@
 import * as units from '../utils/units';
-import {Control, IControlParams} from './Control';
+import {Control, type IControlParams} from './Control';
 import {heightMode} from '../utils/units';
 import {LonLat} from '../LonLat';
 import {throttle} from '../utils/shared';
-import {IMouseState} from "../renderer/RendererEvents";
+import type {IMouseState} from "../renderer/RendererEvents";
 
 interface IEarthCoordinatesParams extends IControlParams {
     heightMode?: string;
@@ -74,7 +74,7 @@ export class EarthCoordinates extends Control {
 
         this._lonLat = null;
 
-        this._centerMode = options.centerMode != undefined ? options.centerMode : true;
+        this._centerMode = false;//options.centerMode != undefined ? options.centerMode : true;
     }
 
     protected _SHOW_DECIMAL(ll?: LonLat | null) {

@@ -183,7 +183,7 @@ class Ellipsoid {
     }
 
     /**
-     * Gets cartesian ECEF from Wgs84 geodetic coordinates.
+     * Gets cartesian ECEF 3d coordinates from geodetic coordinates.
      * @public
      * @param {Number} lon - Longitude.
      * @param {Number} lat - Latitude.
@@ -330,6 +330,12 @@ class Ellipsoid {
         return this.direct(lonLat, azimuth, dist).destination;
     }
 
+    /**
+     * Returns inverse Geodesic solution for two points
+     * @param {LonLat} lonLat1 - start coordinates point
+     * @param {LonLat} lonLat2 - end coordinates point
+     * @returns {IInverseResult} - Contains distance, initialAzimuth, and finalAzimuth values
+     */
     public inverse(lonLat1: LonLat, lonLat2: LonLat): IInverseResult {
 
         let a = this._a, b = this._b, f = this._flattening;
@@ -393,7 +399,7 @@ class Ellipsoid {
      * @param {LonLat} lonLat - Origin coordinates
      * @param {number} azimuth - View azimuth in degrees
      * @param {number} dist - Distance to the destination point coordinates in meters
-     * @returns {LonLat} - Destination point coordinates
+     * @returns {{destination: LonLat, finalAzimuth: number}} - Destination point coordinates
      */
     public direct(lonLat: LonLat, azimuth: number, dist: number): IDirectResult {
 
@@ -617,6 +623,25 @@ class Ellipsoid {
             }
         }
         return (Math.atan2(dLon, dPhi) * DEGREES + 360) % 360;
+    }
+
+    public getLonLatVisibilitySimple(eye: Vec3, lonLat: LonLat, forward?: Vec3): boolean {
+        const cart = this.lonLatToCartesian(lonLat);
+        const height = lonLat.height;
+
+        const f = this.polarSize + height;
+        const g = Math.max(eye.length() - this.polarSize, 0);
+        const look = cart.sub(eye);
+
+        let maxVisibleDistance;
+        if (g > 0) {
+            maxVisibleDistance = Math.sqrt((f + g) ** 2 - f ** 2);
+        } else {
+            maxVisibleDistance = f;
+        }
+
+        return maxVisibleDistance > look.length() &&
+            (!forward || forward.dot(look.normalize()) > 0.0);
     }
 }
 

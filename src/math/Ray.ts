@@ -2,6 +2,7 @@ import {EPS10} from "../math";
 import {Box} from "../bv/Box";
 import {Sphere} from "../bv/Sphere";
 import {Vec3} from "./Vec3";
+import {Plane} from "./Plane";
 
 /**
  * Represents a ray that extends infinitely from the provided origin in the provided direction.
@@ -65,17 +66,16 @@ export class Ray {
     }
 
     /**
-     * Computes the point along the ray on the distance.
-     * @public
-     * @param {number} distance - Point distance.
-     * @returns {Vec3}
+     * Get a point on the ray at a given distance `t`.
+     * @param {number} distance - Distance from the origin along the ray.
+     * @returns {Vec3} The point at distance `t`.
      */
     public getPoint(distance: number): Vec3 {
         return Vec3.add(this.origin, this.direction.scaleTo(distance));
     }
 
     /**
-     * Returns ray hit a triange result.
+     * Returns ray hit a triangle result.
      * @public
      * @param {Vec3} v0 - First triangle corner coordinate.
      * @param {Vec3} v1 - Second triangle corner coordinate.
@@ -84,7 +84,7 @@ export class Ray {
      * @returns {number} - Hit code, could 0 - og.Ray.OUTSIDE, 1 - og.Ray.INSIDE,
      *      2 - og.Ray.INPLANE and 3 - og.Ray.AWAY(ray goes away from triangle).
      */
-    public hitTriangle(v0: Vec3, v1: Vec3, v2: Vec3, res: Vec3): number {
+    public hitTriangleRes(v0: Vec3, v1: Vec3, v2: Vec3, res: Vec3): number {
         let u = v1.sub(v0);
         let v = v2.sub(v0);
         let n = u.cross(v);
@@ -137,92 +137,96 @@ export class Ray {
         return Ray.INSIDE;
     }
 
+    // /**
+    //  * Gets a ray hit a plane result. If the ray cross the plane returns 1 - og.Ray.INSIDE otherwise returns 0 - og.Ray.OUTSIDE.
+    //  * @public
+    //  * @param {Vec3} v0 - First plane point.
+    //  * @param {Vec3} v1 - Second plane point.
+    //  * @param {Vec3} v2 - Third plane point.
+    //  * @param {Vec3} res - Hit point object pointer that stores hit result.
+    //  * @returns {number}
+    //  */
+    // public hitPlaneRes(v0: Vec3, v1: Vec3, v2: Vec3, res: Vec3): number {
+    //     let u = Vec3.sub(v1, v0);
+    //     let v = Vec3.sub(v2, v0);
+    //     let n = u.cross(v);
+    //
+    //     let w0 = Vec3.sub(this.origin, v0);
+    //     let a = -n.dot(w0);
+    //     let b = n.dot(this.direction);
+    //
+    //     // ray is  parallel to the plane
+    //     if (Math.abs(b) < EPS10) {
+    //         if (a === 0) {
+    //             return Ray.OUTSIDE;
+    //         }
+    //     }
+    //
+    //     let r = a / b;
+    //
+    //     if (r < 0) {
+    //         return Ray.OUTSIDE;
+    //     }
+    //
+    //     let d = this.direction.scaleTo(r);
+    //
+    //     // intersect point of ray and plane
+    //     res.x = this.origin.x + d.x;
+    //     res.y = this.origin.y + d.y;
+    //     res.z = this.origin.z + d.z;
+    //
+    //     return Ray.INSIDE;
+    // }
+
     /**
-     * Gets a ray hit a plane result. If the ray cross the plane returns 1 - og.Ray.INSIDE otherwise returns 0 - og.Ray.OUTSIDE.
-     * @public
-     * @param {Vec3} v0 - First plane point.
-     * @param {Vec3} v1 - Second plane point.
-     * @param {Vec3} v2 - Third plane point.
-     * @param {Vec3} res - Hit point object pointer that stores hit result.
-     * @returns {number}
+     * Finds the intersection of the ray with a plane.
+     * @param {Plane} plane - The plane to intersect with.
+     * @returns {Vec3 | null} The intersection point or null if no intersection.
      */
-    public hitPlane(v0: Vec3, v1: Vec3, v2: Vec3, res: Vec3): number {
-        let u = Vec3.sub(v1, v0);
-        let v = Vec3.sub(v2, v0);
-        let n = u.cross(v);
+    public hitPlaneRes(plane: Plane, res: Vec3): number {
+        const d = this.direction.dot(plane.n);
 
-        let w0 = Vec3.sub(this.origin, v0);
-        let a = -n.dot(w0);
-        let b = n.dot(this.direction);
-
-        // ray is  parallel to the plane
-        if (Math.abs(b) < EPS10) {
-            if (a === 0) {
-                return Ray.OUTSIDE;
-            }
-        }
-
-        let r = a / b;
-
-        if (r < 0) {
+        if (Math.abs(d) < EPS10) {
             return Ray.OUTSIDE;
         }
 
-        let d = this.direction.scaleTo(r);
+        const t = plane.p.sub(this.origin).dot(plane.n) / d;
 
-        // intersect point of ray and plane
-        res.x = this.origin.x + d.x;
-        res.y = this.origin.y + d.y;
-        res.z = this.origin.z + d.z;
+        if (t < 0) {
+            return Ray.AWAY;
+        }
+
+        res.copy(this.getPoint(t));
 
         return Ray.INSIDE;
     }
 
     /**
-     * Returns a ray hit sphere coordiante. If there isn't hit returns null.
+     * Returns a ray hit sphere coordinates. If there isn't hit returns null.
      * @public
      * @param {Sphere} sphere - Sphere object.
      * @returns {Vec3}
      */
     public hitSphere(sphere: Sphere) {
-        let r = sphere.radius,
-            c = sphere.center,
-            o = this.origin,
-            d = this.direction;
+        const oc = Vec3.sub(this.origin, sphere.center);
+        const a = this.direction.dot(this.direction);
+        const b = 2.0 * oc.dot(this.direction);
+        const c = oc.dot(oc) - sphere.radius * sphere.radius;
+        const discriminant = b * b - 4 * a * c;
 
-        let vpc = Vec3.sub(c, o);
-
-        if (vpc.dot(d) < 0) {
-            var l = vpc.length();
-            if (l > r) {
-                return null;
-            } else if (l === r) {
-                return o.clone();
-            }
-            let pc = c.projToRay(o, vpc);
-            var lc = Vec3.sub(pc, c).length();
-            let dist = Math.sqrt(r * r - lc * lc);
-            let di1 = dist - Vec3.sub(pc, o).length();
-            let intersection = Vec3.add(o, d.scaleTo(di1));
-            return intersection;
-        } else {
-            let pc = c.projToRay(o, d);
-            var cpcl = Vec3.sub(c, pc).length();
-            if (cpcl > sphere.radius) {
-                return null;
-            } else {
-                let dist = Math.sqrt(r * r - cpcl * cpcl);
-                let di1;
-                pc.subA(o);
-                if (vpc.length() > r) {
-                    di1 = pc.length() - dist;
-                } else {
-                    di1 = pc.length() + dist;
-                }
-                let intersection = Vec3.add(o, d.scaleTo(di1));
-                return intersection;
-            }
+        if (discriminant < 0) {
+            return null;
         }
+
+        const sqrtDisc = Math.sqrt(discriminant);
+        const t1 = (-b - sqrtDisc) / (2.0 * a);
+        const t2 = (-b + sqrtDisc) / (2.0 * a);
+
+        let t = t1;
+        if (t < 0) t = t2;
+        if (t < 0) return null;
+
+        return Vec3.add(this.origin, this.direction.scaleTo(t));
     }
 
     public hitBox(box: Box) {

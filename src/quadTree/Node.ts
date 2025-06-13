@@ -1,7 +1,7 @@
 import {Extent} from "../Extent";
 import {EPSG3857} from "../proj/EPSG3857";
 import {EPSG4326} from "../proj/EPSG4326";
-import {getMatrixSubArray32, getMatrixSubArray64, getMatrixSubArrayBoundsExt} from "../utils/shared";
+import {binaryInsert, getMatrixSubArray32, getMatrixSubArray64, getMatrixSubArrayBoundsExt} from "../utils/shared";
 import {LonLat} from "../LonLat";
 import {MAX, MIN} from "../math";
 import {MAX_LAT} from "../mercator";
@@ -11,7 +11,6 @@ import {Segment} from "../segment/Segment";
 import {Vec2} from "../math/Vec2";
 import {Vec3} from "../math/Vec3";
 import {
-    COMSIDE,
     E,
     MAX_RENDERED_NODES,
     N,
@@ -26,7 +25,6 @@ import {
     S,
     SE,
     SW,
-    VISIBLE_DISTANCE,
     W,
     WALKTHROUGH
 } from "./quadTree";
@@ -59,6 +57,8 @@ let BOUNDS: BoundsType = {
     xmax: 0.0, ymax: 0.0, zmax: 0.0
 };
 
+let __staticCounter = 0;
+
 /**
  * Quad tree planet segment node.
  * @constructor
@@ -71,12 +71,14 @@ let BOUNDS: BoundsType = {
  * @param {Extent} extent - Planet segment extent.
  */
 class Node {
+    public __id: number;
     public SegmentPrototype: typeof Segment;
     public planet: Planet;
     public parentNode: Node | null;
     public partId: number;
     public nodeId: number;
     public state: number | null;
+    public prevState: number | null;
     public appliedTerrainNodeId: number;
     public sideSizeLog2: [number, number, number, number];
     public ready: boolean;
@@ -86,37 +88,42 @@ class Node {
     public segment: Segment;
     public _cameraInside: boolean;
     public inFrustum: number;
+    public _fadingNodes: Node[];
 
     constructor(
         SegmentPrototype: typeof Segment,
         planet: Planet,
         partId: number,
         parent: Node | null,
-        id: number,
         tileZoom: number,
         extent: Extent
     ) {
         planet._createdNodesCount++;
 
+        this.__id = __staticCounter++;
+
         this.SegmentPrototype = SegmentPrototype;
         this.planet = planet;
         this.parentNode = parent;
         this.partId = partId;
-        this.nodeId = partId + id;
+        this.nodeId = partId + (parent ? parent.nodeId * 4 + 1 : 0);
         this.state = null;
+        this.prevState = null;
         this.appliedTerrainNodeId = -1;
         this.sideSizeLog2 = [0, 0, 0, 0];
         this.ready = false;
         this.neighbors = [[], [], [], []];
         this.equalizedSideWithNodeId = [this.nodeId, this.nodeId, this.nodeId, this.nodeId];
+        // @todo: this.nodes = null;
         this.nodes = [];
         this.segment = new SegmentPrototype(this, planet, tileZoom, extent);
         this._cameraInside = false;
         this.inFrustum = 0;
+        this._fadingNodes = [];
         this.createBounds();
     }
 
-    public createChildrenNodes() {
+    public createChildNodes() {
         this.ready = true;
         const p = this.planet;
         const ps = this.segment;
@@ -126,14 +133,13 @@ class Node {
         const size_y = ext.getHeight() * 0.5;
         const ne = ext.northEast;
         const sw = ext.southWest;
-        const id = this.nodeId * 4 + 1;
         const c = new LonLat(sw.lon + size_x, sw.lat + size_y);
         const nd = this.nodes;
 
-        nd[NW] = new Node(this.SegmentPrototype, p, NW, this, id, z, new Extent(new LonLat(sw.lon, sw.lat + size_y), new LonLat(sw.lon + size_x, ne.lat)));
-        nd[NE] = new Node(this.SegmentPrototype, p, NE, this, id, z, new Extent(c, new LonLat(ne.lon, ne.lat)));
-        nd[SW] = new Node(this.SegmentPrototype, p, SW, this, id, z, new Extent(new LonLat(sw.lon, sw.lat), c));
-        nd[SE] = new Node(this.SegmentPrototype, p, SE, this, id, z, new Extent(new LonLat(sw.lon + size_x, sw.lat), new LonLat(ne.lon, sw.lat + size_y)));
+        nd[NW] = new Node(this.SegmentPrototype, p, NW, this, z, new Extent(new LonLat(sw.lon, sw.lat + size_y), new LonLat(sw.lon + size_x, ne.lat)));
+        nd[NE] = new Node(this.SegmentPrototype, p, NE, this, z, new Extent(c, new LonLat(ne.lon, ne.lat)));
+        nd[SW] = new Node(this.SegmentPrototype, p, SW, this, z, new Extent(new LonLat(sw.lon, sw.lat), c));
+        nd[SE] = new Node(this.SegmentPrototype, p, SE, this, z, new Extent(new LonLat(sw.lon + size_x, sw.lat), new LonLat(ne.lon, sw.lat + size_y)));
     }
 
     public createBounds() {
@@ -209,26 +215,30 @@ class Node {
     //     return !(this.parentNode || node.parentNode) || (this.parentNode!.nodeId === node.parentNode!.nodeId);
     // }
 
-    public renderTree(cam: PlanetCamera, maxZoom?: number | null, terrainReadySegment?: Segment | null, stopLoading?: boolean) {
+    public traverseNodes(cam: PlanetCamera, maxZoom?: number | null, terrainReadySegment?: Segment | null, stopLoading?: boolean, zoomPassNode?: Node) {
+        if (!this.ready) {
+            this.createChildNodes();
+        }
+
+        let n = this.nodes;
+
+        n[0]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading, zoomPassNode);
+        n[1]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading, zoomPassNode);
+        n[2]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading, zoomPassNode);
+        n[3]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading, zoomPassNode);
+    }
+
+    public renderTree(cam: PlanetCamera, maxZoom?: number | null, terrainReadySegment?: Segment | null, stopLoading?: boolean, zoomPassNode?: Node) {
         if (this.planet._renderedNodes.length >= MAX_RENDERED_NODES) {
             return;
         }
 
+        if (!maxZoom || zoomPassNode && this.segment.tileZoom > zoomPassNode.segment.tileZoom) {
+            this.prevState = this.state;
+        }
         this.state = WALKTHROUGH;
 
-        // @ts-ignore
-        this.neighbors[0] = null;
-        // @ts-ignore
-        this.neighbors[1] = null;
-        // @ts-ignore
-        this.neighbors[2] = null;
-        // @ts-ignore
-        this.neighbors[3] = null;
-
-        this.neighbors[0] = [];
-        this.neighbors[1] = [];
-        this.neighbors[2] = [];
-        this.neighbors[3] = [];
+        this.clearNeighbors();
 
         let seg = this.segment,
             planet = this.planet;
@@ -238,9 +248,9 @@ class Node {
         // Search a node which the camera is flying over.
         if (!this.parentNode || this.parentNode._cameraInside) {
             let inside;
-            if (Math.abs(cam._lonLat.lat) <= MAX_LAT && seg._projection.id === EPSG3857.id) {
+            if (/*Math.abs(cam._lonLat.lat) <= MAX_LAT && */seg._projection.id === EPSG3857.id) {
                 inside = seg._extent.isInside(cam._lonLatMerc);
-            } else if (seg._projection.id === EPSG4326.id) {
+            } else /*if (seg._projection.id === EPSG4326.id)*/ {
                 inside = seg._extent.isInside(cam._lonLat);
             }
 
@@ -261,16 +271,13 @@ class Node {
                 }
             }
         } else {
-            let commonFrustumFlag = 1 << (numFrustums - 1 - 1);
-            for (let i = 0; commonFrustumFlag && i < numFrustums; i++) {
+            for (let i = 0; i < numFrustums; i++) {
                 if (seg.terrainReady) {
                     if (frustums[i].containsBox(seg.bbox)) {
-                        commonFrustumFlag >>= 1;
                         this.inFrustum |= 1 << i;
                     }
                 } else {
                     if (frustums[i].containsSphere(seg.bsphere)) {
-                        commonFrustumFlag >>= 1;
                         this.inFrustum |= 1 << i;
                     }
                 }
@@ -280,25 +287,30 @@ class Node {
         if (this.inFrustum || this._cameraInside || seg.tileZoom < 3) {
             let h = Math.abs(cam._lonLat.height);
 
-            let eye = cam.eye;
-            let horizonDist = eye.length2() - this.planet.ellipsoid.polarSizeSqr;
+            let horizonDist = cam.eye.length2() - planet.ellipsoid.polarSizeSqr;
+            horizonDist = horizonDist < 106876472875.63281 * planet._heightFactor ? 106876472875.63281 * planet._heightFactor : horizonDist;
 
-            let altVis = seg.tileZoom > 19 || (seg.tileZoom < 5 && !seg.terrainReady) || seg.tileZoom < 2;
+            let altVis = seg.tileZoom < 2 || seg.tileZoom > 19 ||
+                /* Could be replaced with camera frustum always looking down check,
+                and not to go through nodes from the opposite of the globe*/
+                (seg.tileZoom < 6 && !seg.terrainReady);
 
-            if (h > 21000) {
-                altVis = altVis || eye.distance2(seg._sw) < horizonDist || eye.distance2(seg._nw) < horizonDist || eye.distance2(seg._ne) < horizonDist || eye.distance2(seg._se) < horizonDist;
-            } else {
-                altVis = altVis || cam.eye.distance(seg.bsphere.center) - seg.bsphere.radius < VISIBLE_DISTANCE * Math.sqrt(h);
-            }
+            altVis = altVis ||
+                cam.eye.distance2(seg._sw) < horizonDist ||
+                cam.eye.distance2(seg._nw) < horizonDist ||
+                cam.eye.distance2(seg._ne) < horizonDist ||
+                cam.eye.distance2(seg._se) < horizonDist;
 
             if ((this.inFrustum && (altVis || h > 10000.0)) || this._cameraInside) {
-                //@todo: replace to the strategy
-                seg._collectVisibleNodes();
+                planet.quadTreeStrategy.collectVisibleNode(this);
             }
 
             if (seg.tileZoom < 2) {
-                this.traverseNodes(cam, maxZoom, terrainReadySegment, stopLoading);
-            } else if (seg.terrainReady && (!maxZoom && cam.projectedSize(seg.bsphere.center, seg._plainRadius) < planet.lodSize || maxZoom && ((seg.tileZoom === maxZoom) || !altVis))) {
+                this.traverseNodes(cam, maxZoom, terrainReadySegment, stopLoading, zoomPassNode);
+            } else if (
+                seg.terrainReady && (!maxZoom && cam.projectedSize(seg.bsphere.center, seg._plainRadius) < planet.lodSize
+                    || maxZoom && ((seg.tileZoom === maxZoom) || !altVis))
+            ) {
 
                 if (altVis) {
                     seg.passReady = true;
@@ -308,7 +320,7 @@ class Node {
                 }
 
             } else if (seg.terrainReady && seg.checkZoom() && (!maxZoom || cam.projectedSize(seg.bsphere.center, seg.bsphere.radius) > this.planet._maxLodSize)) {
-                this.traverseNodes(cam, maxZoom, seg, stopLoading);
+                this.traverseNodes(cam, maxZoom, seg, stopLoading, zoomPassNode);
             } else if (altVis) {
                 seg.passReady = maxZoom ? seg.terrainReady : false;
                 this.renderNode(this.inFrustum, !this.inFrustum, terrainReadySegment, stopLoading);
@@ -318,19 +330,6 @@ class Node {
         } else {
             this.state = NOTRENDERING;
         }
-    }
-
-    public traverseNodes(cam: PlanetCamera, maxZoom?: number | null, terrainReadySegment?: Segment | null, stopLoading?: boolean) {
-        if (!this.ready) {
-            this.createChildrenNodes();
-        }
-
-        let n = this.nodes;
-
-        n[0]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading);
-        n[1]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading);
-        n[2]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading);
-        n[3]!.renderTree(cam, maxZoom, terrainReadySegment, stopLoading);
     }
 
     public renderNode(inFrustum: number, onlyTerrain?: boolean, terrainReadySegment?: Segment | null, stopLoading?: boolean) {
@@ -378,8 +377,114 @@ class Node {
         this.addToRender(inFrustum);
     }
 
+    public childrenPrevStateEquals(state: number): boolean {
+        let n = this.nodes;
+        return n.length === 4 && n[0].prevState === state && n[1].prevState === state && n[2].prevState === state && n[3].prevState === state;
+    }
+
+    public isFading(): boolean {
+        let n = this.nodes;
+        return this.state === WALKTHROUGH && this.segment._transitionOpacity > 0.0 && n.length === 4 && (n[0].state === RENDERING && n[1].state === RENDERING && n[2].state === RENDERING && n[3].state === RENDERING);
+    }
+
+    public _collectFadingNodes() {
+
+        if (this.segment.tileZoom < 3) {
+            this.segment._transitionOpacity = 1.0;
+            return;
+        }
+
+        // Light up the node
+        if (this.prevState !== RENDERING) {
+
+            // means that the node is lighting up
+            this.segment._transitionOpacity = 0.0;
+
+            // store fading nodes, could be a parent or children nodes
+            this._fadingNodes = [];
+
+            let timestamp = window.performance.now();
+            this.segment._transitionTimestamp = timestamp;
+
+            if (this.parentNode) {
+                // Parent was visible the last frame, make the parent fading
+                if (this.parentNode.prevState === RENDERING) {
+
+                    let pn: Node | null = this.parentNode.parentNode;
+                    while (pn) {
+                        if (pn.isFading()) {
+                            for (let i = 0; i < pn.nodes.length; i++) {
+                                pn.nodes[i].segment._transitionOpacity = 1.0;
+                                pn.nodes[i]._fadingNodes = [];
+                            }
+                            pn.segment._transitionOpacity = 0.0;
+                            break;
+                        }
+                        pn = pn.parentNode;
+                    }
+
+                    // not sure it's necessary here
+                    this.parentNode.whileTerrainLoading();
+
+                    this._fadingNodes.push(this.parentNode);
+                    this.parentNode.segment._transitionOpacity = 2.0;
+                    this.parentNode.segment._transitionTimestamp = timestamp;
+                } else {
+                    // Check if the children were visible last frame, and make them fading
+                    if (this.segment.childrenInitialized() && this.childrenPrevStateEquals(RENDERING)) {
+                        for (let i = 0; i < this.nodes.length; i++) {
+                            let ni = this.nodes[i];
+
+                            // not sure it's necessary here
+                            ni.whileTerrainLoading();
+
+                            this._fadingNodes.push(ni);
+                            ni.segment._transitionOpacity = 2.0;
+                            ni.segment._transitionTimestamp = timestamp;
+                            ni.prevState = ni.state;
+                            ni.state = NOTRENDERING;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public clearNeighbors() {
+        //this.sideSizeLog2[0] = this.sideSizeLog2[1] = this.sideSizeLog2[2] = this.sideSizeLog2[3] = Math.log2(this.segment.gridSize);
+        if (this.neighbors) {
+            // @ts-ignore
+            this.neighbors[0] = this.neighbors[1] = this.neighbors[2] = this.neighbors[3] = null;
+
+            this.neighbors[0] = [];
+            this.neighbors[1] = [];
+            this.neighbors[2] = [];
+            this.neighbors[3] = [];
+        }
+    }
+
+    public _refreshTransitionOpacity() {
+        if (this._fadingNodes.length === 0) {
+            this.segment._transitionOpacity = 1.0;
+        } else {
+            if (this._fadingNodes.length === 4 && !this.childrenPrevStateEquals(RENDERING)) {
+                this.segment._transitionOpacity = 1.0;
+                this._fadingNodes = [];
+            } else {
+                // Looks like a bug fix for suddenly empty spaces
+                for (let i = 0; i < this._fadingNodes.length; i++) {
+                    if (this.segment._transitionOpacity < 1.0 && this._fadingNodes[i].segment._transitionOpacity === 0) {
+                        this._fadingNodes[i].segment._transitionOpacity = 0;
+                        this.segment._transitionOpacity = 1.0;
+                    }
+                }
+                this.segment.increaseTransitionOpacity();
+            }
+        }
+    }
+
     /**
-     * Searching for neighbours and picking up current node to render processing.
+     * Picking up current node to render processing.
      * @public
      */
     public addToRender(inFrustum: number) {
@@ -387,39 +492,16 @@ class Node {
 
         let nodes = this.planet._renderedNodes;
 
-        for (let i = nodes.length - 1; i >= 0; --i) {
-            const ni = nodes[i];
-            const cs = this.getCommonSide(ni);
-
-            if (cs !== -1) {
-                const opcs = OPSIDE[cs];
-
-                if (this.neighbors[cs].length === 0 || ni.neighbors[opcs].length === 0) {
-                    const ap = this.segment;
-                    const bp = ni.segment;
-                    const ld = ap.gridSize / (bp.gridSize * Math.pow(2, bp.tileZoom - ap.tileZoom));
-
-                    let cs_size = ap.gridSize,
-                        opcs_size = bp.gridSize;
-
-                    if (ld > 1) {
-                        cs_size = Math.ceil(ap.gridSize / ld);
-                        opcs_size = bp.gridSize;
-                    } else if (ld < 1) {
-                        cs_size = ap.gridSize;
-                        opcs_size = Math.ceil(bp.gridSize * ld);
-                    }
-
-                    this.sideSizeLog2[cs] = Math.log2(cs_size);
-                    ni.sideSizeLog2[opcs] = Math.log2(opcs_size);
-                }
-
-                this.neighbors[cs].push(ni);
-                ni.neighbors[opcs].push(this);
-            }
+        //@ts-ignore
+        if (!this.planet._transitionOpacityEnabled) {
+            this.getRenderedNodesNeighbors(nodes);
+            nodes.push(this);
+        } else {
+            //@todo: check if it's possible to get rid of the sorting when using breadth traverse tree
+            binaryInsert(nodes, this, (a: Node, b: Node) => {
+                return a.segment.tileZoom - b.segment.tileZoom;
+            });
         }
-
-        nodes.push(this);
 
         if (!this.segment.terrainReady) {
             this.planet._renderCompleted = false;
@@ -437,6 +519,58 @@ class Node {
         }
     }
 
+    public applyNeighbor(node: Node, side: number) {
+
+        const opcs = OPSIDE[side];
+
+        if (this.neighbors[side].length === 0 || node.neighbors[opcs].length === 0) {
+            const ap = this.segment;
+            const bp = node.segment;
+
+            const ld = ap.gridSize / (bp.gridSize * Math.pow(2, bp.tileZoom - ap.tileZoom));
+
+            let cs_size = ap.gridSize,
+                opcs_size = bp.gridSize;
+
+            if (ld > 1) {
+                cs_size = Math.ceil(ap.gridSize / ld);
+                opcs_size = bp.gridSize;
+            } else if (ld < 1) {
+                cs_size = ap.gridSize;
+                opcs_size = Math.ceil(bp.gridSize * ld);
+            }
+
+            this.sideSizeLog2[side] = Math.log2(cs_size);
+            node.sideSizeLog2[opcs] = Math.log2(opcs_size);
+        }
+
+        //@todo: fix dupe neighbors
+        this.neighbors[side].push(node);
+        node.neighbors[opcs].push(this);
+    }
+
+    /**
+     * Searching current node for its neighbours.
+     * @public
+     */
+    public getRenderedNodesNeighbors(nodes: Node[]) {
+
+        for (let i = nodes.length - 1; i >= 0; --i) {
+
+            let ni = nodes[i];
+            let cs = this.getCommonSide(ni);
+
+            if (cs !== -1) {
+                this.applyNeighbor(ni, cs);
+            }
+        }
+    }
+
+    /**
+     * Checking if current node has a common side with input node and return side index N, E, S or W. Otherwise returns -1.
+     * @param {Node} node - Input node
+     * @returns {number} - Node side index
+     */
     public getCommonSide(node: Node): number {
         const as = this.segment;
         const bs = node.segment;
@@ -447,10 +581,13 @@ class Node {
             const a = as._extentLonLat;
             const b = bs._extentLonLat;
 
-            let a_ne = a.northEast, a_sw = a.southWest, b_ne = b.northEast, b_sw = b.southWest;
+            let a_ne = a.northEast, a_sw = a.southWest,
+                b_ne = b.northEast, b_sw = b.southWest;
 
-            let a_ne_lon = a_ne.lon, a_ne_lat = a_ne.lat, a_sw_lon = a_sw.lon, a_sw_lat = a_sw.lat, b_ne_lon = b_ne.lon,
-                b_ne_lat = b_ne.lat, b_sw_lon = b_sw.lon, b_sw_lat = b_sw.lat;
+            let a_ne_lon = a_ne.lon, a_ne_lat = a_ne.lat,
+                a_sw_lon = a_sw.lon, a_sw_lat = a_sw.lat,
+                b_ne_lon = b_ne.lon, b_ne_lat = b_ne.lat,
+                b_sw_lon = b_sw.lon, b_sw_lat = b_sw.lat;
 
             if (as._tileGroup === bs._tileGroup) {
                 if (a_ne_lon === b_sw_lon && ((a_ne_lat <= b_ne_lat && a_sw_lat >= b_sw_lat) || (a_ne_lat >= b_ne_lat && a_sw_lat <= b_sw_lat))) {
@@ -461,81 +598,29 @@ class Node {
                     return N;
                 } else if (a_sw_lat === b_ne_lat && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
                     return S;
-                } else if (bs.tileX === 0 && as.tileX === Math.pow(2, as.tileZoom) - 1 && ((a_ne_lat <= b_ne_lat && a_sw_lat >= b_sw_lat) || (a_ne_lat >= b_ne_lat && a_sw_lat <= b_sw_lat))) {
+                }
+                // World edge 180 to -180
+                else if (bs.tileX === 0 && b_sw_lon === -a_ne_lon && ((a_ne_lat <= b_ne_lat && a_sw_lat >= b_sw_lat) || (a_ne_lat >= b_ne_lat && a_sw_lat <= b_sw_lat))) {
                     return E;
-                } else if (as.tileX === 0 && bs.tileX === Math.pow(2, bs.tileZoom) - 1 && ((a_ne_lat <= b_ne_lat && a_sw_lat >= b_sw_lat) || (a_ne_lat >= b_ne_lat && a_sw_lat <= b_sw_lat))) {
+                } else if (as.tileX === 0 && a_sw_lon === -b_ne_lon && ((a_ne_lat <= b_ne_lat && a_sw_lat >= b_sw_lat) || (a_ne_lat >= b_ne_lat && a_sw_lat <= b_sw_lat))) {
                     return W;
                 }
             }
 
-            if (as._tileGroup === TILEGROUP_COMMON && bs._tileGroup === TILEGROUP_NORTH && as.tileY === 0 && bs.tileY === Math.pow(2, bs.tileZoom) - 1 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
+            // @todo: replace to the default strategy
+            if (as._tileGroup === TILEGROUP_COMMON && bs._tileGroup === TILEGROUP_NORTH && as.tileY === 0 && bs.tileY === bs.powTileZoom/*Math.pow(2, bs.tileZoom)*/ - 1 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
                 return N;
-            } else if (as._tileGroup === TILEGROUP_SOUTH && bs._tileGroup === TILEGROUP_COMMON && as.tileY === 0 && bs.tileY === Math.pow(2, bs.tileZoom) - 1 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
-                return N;
-            } else if (bs._tileGroup === TILEGROUP_NORTH && as._tileGroup === TILEGROUP_COMMON && as.tileY === Math.pow(2, as.tileZoom) - 1 && bs.tileY === 0 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
+            } else if (as._tileGroup === TILEGROUP_COMMON && bs._tileGroup === TILEGROUP_SOUTH && as.tileY === as.powTileZoom/*Math.pow(2, as.tileZoom)*/ - 1 && bs.tileY === 0 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
                 return S;
-            } else if (as._tileGroup === TILEGROUP_NORTH && bs._tileGroup === TILEGROUP_COMMON && as.tileY === Math.pow(2, as.tileZoom) - 1 && bs.tileY === 0 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
+            } else if (as._tileGroup === TILEGROUP_SOUTH && bs._tileGroup === TILEGROUP_COMMON && as.tileY === 0 && bs.tileY === bs.powTileZoom/*Math.pow(2, bs.tileZoom)*/ - 1 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
+                return N;
+            } else if (as._tileGroup === TILEGROUP_NORTH && bs._tileGroup === TILEGROUP_COMMON && as.tileY === as.powTileZoom/*Math.pow(2, as.tileZoom)*/ - 1 && bs.tileY === 0 && ((a_sw_lon >= b_sw_lon && a_ne_lon <= b_ne_lon) || (a_sw_lon <= b_sw_lon && a_ne_lon >= b_ne_lon))) {
                 return S;
             }
         }
 
         return -1;
     }
-
-    // // TODO: test test test
-    // public ___getCommonSide___(b: Node) {
-    //     let a = this, as = a.segment, bs = b.segment;
-    //
-    //     if (as.tileZoom === bs.tileZoom) {
-    //         return as.getNeighborSide(bs);
-    //     } else if (as.tileZoom > bs.tileZoom) {
-    //         let dz = as.tileZoom - bs.tileZoom, i = dz, p: Node = this;
-    //
-    //         while (i--) {
-    //             p = p.parentNode!;
-    //         }
-    //
-    //         let side = p.segment.getNeighborSide(bs);
-    //
-    //         if (side !== -1) {
-    //             i = dz;
-    //             p = this;
-    //             let _n = true;
-    //
-    //             while (i--) {
-    //                 _n = _n && COMSIDE[p.partId][side];
-    //             }
-    //
-    //             if (_n) {
-    //                 return side;
-    //             }
-    //         }
-    //     } else {
-    //         let dz = bs.tileZoom - as.tileZoom, i = dz, p = b;
-    //
-    //         while (i--) {
-    //             p = p.parentNode!;
-    //         }
-    //
-    //         let side = p.segment.getNeighborSide(as);
-    //
-    //         if (side !== -1) {
-    //             i = dz;
-    //             p = b;
-    //             let _n = true;
-    //
-    //             while (i--) {
-    //                 _n = _n && COMSIDE[p.partId][side];
-    //             }
-    //
-    //             if (_n) {
-    //                 return OPSIDE[side];
-    //             }
-    //         }
-    //     }
-    //
-    //     return -1;
-    // }
 
     public whileNormalMapCreating() {
 
@@ -574,7 +659,7 @@ class Node {
 
         if (pn.segment.terrainReady && this.appliedTerrainNodeId !== pn.nodeId) {
 
-            let dZ2 = 2 << (seg.tileZoom - pn.segment.tileZoom - 1),
+            let dZ2 = 2 << (seg.tileZoom - pn.segment.tileZoom - 1), // 2 * Math.pow(2, dZ-1)
                 offsetX = seg.tileX - pn.segment.tileX * dZ2,
                 offsetY = seg.tileY - pn.segment.tileY * dZ2;
 
@@ -758,7 +843,8 @@ class Node {
                         seg.normalMapVertices = tempVertices;
                         seg.fileGridSize = Math.sqrt(tempVertices.length / 3) - 1;
 
-                        let fgs = Math.sqrt(pseg.normalMapNormals!.length / 3) - 1, fgsZ = fgs / dZ2;
+                        let fgs = Math.sqrt(pseg.normalMapNormals!.length / 3) - 1,
+                            fgsZ = fgs / dZ2;
 
                         if (fgs > 1) {
                             seg.normalMapNormals = getMatrixSubArray32(pseg.normalMapNormals!, fgs, fgsZ * offsetY, fgsZ * offsetX, fgsZ);
@@ -774,24 +860,17 @@ class Node {
 
     public destroy() {
 
-        this.state = NOTRENDERING;
+        this.prevState = this.state = NOTRENDERING;
         this.segment.destroySegment();
 
         let n = this.neighbors;
-        for (let i = 0; i < n.length; i++) {
+        for (let i = 0, len = n.length; i < len; i++) {
             let ni = n[i];
             if (ni) {
                 for (let j = 0; j < ni.length; j++) {
                     let nij = ni[j];
                     if (nij && nij.neighbors) {
-                        // @ts-ignore
-                        nij.neighbors[N] = null;
-                        // @ts-ignore
-                        nij.neighbors[E] = null;
-                        // @ts-ignore
-                        nij.neighbors[S] = null;
-                        // @ts-ignore
-                        nij.neighbors[W] = null;
+                        nij.clearNeighbors();
                     }
                 }
             }

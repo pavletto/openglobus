@@ -10,8 +10,10 @@ import {Segment} from "../segment/Segment";
 import {Vec3} from '../math/Vec3';
 import {Vector} from "../layer/Vector";
 import {Entity} from "../entity/Entity";
+import {EntityCollectionsTreeStrategy} from "./EntityCollectionsTreeStrategy";
 
-type NodesDict = Record<number, Node>;
+
+export type NodesDict = Record<number, Node>;
 
 /**
  * @todo: remove planet parameter. It's already available in the layer.
@@ -19,8 +21,9 @@ type NodesDict = Record<number, Node>;
 class EntityCollectionNode {
 
     public layer: Vector;
+    public strategy: EntityCollectionsTreeStrategy
     public parentNode: EntityCollectionNode | null;
-    public childrenNodes: EntityCollectionNode[];
+    public childNodes: EntityCollectionNode[];
     public partId: number;
     public nodeId: number;
     public state: number | null;
@@ -33,12 +36,14 @@ class EntityCollectionNode {
 
     public _inTheQueue: boolean;
 
-    constructor(layer: Vector, partId: number, parent: EntityCollectionNode | null, id: number, extent: Extent, planet: Planet, zoom: number) {
-        this.layer = layer;
+    constructor(strategy: EntityCollectionsTreeStrategy, partId: number, parent: EntityCollectionNode | null, extent: Extent, planet: Planet, zoom: number) {
+        this.strategy = strategy;
+        this.layer = strategy._layer;
         this.parentNode = parent;
-        this.childrenNodes = [];
+        this.childNodes = [];
         this.partId = partId;
-        this.nodeId = partId + id;
+        //this.nodeId = partId + id;
+        this.nodeId = partId + (parent ? parent.nodeId * 4 + 1 : 0);
         this.state = null;
         this.extent = extent;
         this.count = 0;
@@ -111,9 +116,9 @@ class EntityCollectionNode {
         this.count += entities.length;
 
         if (entities.length > this.layer._nodeCapacity) {
-            const cn = this.childrenNodes;
+            const cn = this.childNodes;
             if (!cn.length) {
-                this.createChildrenNodes();
+                this.createChildNodes();
             }
 
             let en_nw = [],
@@ -157,34 +162,33 @@ class EntityCollectionNode {
         }
     }
 
-    public createChildrenNodes() {
-        const l = this.layer;
+    public createChildNodes() {
+        const s = this.strategy;
         const ext = this.extent;
         const size_x = ext.getWidth() * 0.5;
         const size_y = ext.getHeight() * 0.5;
         const ne = ext.northEast;
         const sw = ext.southWest;
-        const id = this.nodeId * 4 + 1;
         const c = new LonLat(sw.lon + size_x, sw.lat + size_y);
-        const nd = this.childrenNodes;
+        const nd = this.childNodes;
         const p = this.layer._planet!;
         const z = this.zoom + 1;
 
-        nd[NW] = new EntityCollectionNode(l, NW, this, id, new Extent(new LonLat(sw.lon, sw.lat + size_y), new LonLat(sw.lon + size_x, ne.lat)), p, z);
-        nd[NE] = new EntityCollectionNode(l, NE, this, id, new Extent(c, new LonLat(ne.lon, ne.lat)), p, z);
-        nd[SW] = new EntityCollectionNode(l, SW, this, id, new Extent(new LonLat(sw.lon, sw.lat), c), p, z);
-        nd[SE] = new EntityCollectionNode(l, SE, this, id, new Extent(new LonLat(sw.lon + size_x, sw.lat), new LonLat(ne.lon, sw.lat + size_y)), p, z);
+        nd[NW] = new EntityCollectionNode(s, NW, this, new Extent(new LonLat(sw.lon, sw.lat + size_y), new LonLat(sw.lon + size_x, ne.lat)), p, z);
+        nd[NE] = new EntityCollectionNode(s, NE, this, new Extent(c, new LonLat(ne.lon, ne.lat)), p, z);
+        nd[SW] = new EntityCollectionNode(s, SW, this, new Extent(new LonLat(sw.lon, sw.lat), c), p, z);
+        nd[SE] = new EntityCollectionNode(s, SE, this, new Extent(new LonLat(sw.lon + size_x, sw.lat), new LonLat(ne.lon, sw.lat + size_y)), p, z);
     }
 
     public collectRenderCollectionsPASS1(visibleNodes: NodesDict, outArr: EntityCollection[]) {
         const n = visibleNodes[this.nodeId];
         if (n) {
-            const cn = this.childrenNodes;
+            const cn = this.childNodes;
             if (this.entityCollection) {
                 this.renderCollection(outArr, visibleNodes);
             } else if (cn.length) {
                 if (n.state === RENDERING) {
-                    this.layer._secondPASS.push(this);
+                    this.strategy._secondPASS.push(this);
                 } else {
                     cn[NW].collectRenderCollectionsPASS1(visibleNodes, outArr);
                     cn[NE].collectRenderCollectionsPASS1(visibleNodes, outArr);
@@ -202,9 +206,9 @@ class EntityCollectionNode {
         const altVis = (cam.eye.distance(this.bsphere.center) - this.bsphere.radius <
             VISIBLE_DISTANCE * Math.sqrt(cam._lonLat.height)) || cam._lonLat.height > 10000;
 
-        if (this.count > 0 && altVis && cam.frustum.containsSphere(this.bsphere)) {
+        if (this.count > 0 && altVis && cam.containsSphere(this.bsphere)) {
 
-            const cn = this.childrenNodes;
+            const cn = this.childNodes;
 
             if (this.entityCollection) {
                 this.renderCollection(outArr, visibleNodes, renderingNodeId);
@@ -226,7 +230,7 @@ class EntityCollectionNode {
 
     public traverseTree(callback: Function) {
 
-        const cn = this.childrenNodes;
+        const cn = this.childNodes;
 
         if (this.entityCollection) {
             callback(this);
@@ -240,19 +244,20 @@ class EntityCollectionNode {
 
     public renderCollection(outArr: EntityCollection[], visibleNodes: NodesDict, renderingNodeId?: number) {
 
-        const l = this.layer;
+        const s = this.strategy;
 
-        l._renderingNodes[this.nodeId] = true;
+        s._renderingNodes[this.nodeId] = true;
 
         if (this.deferredEntities.length && !this._inTheQueue) {
-            if (l.async) {
-                l._queueDeferredNode(this);
+            if (this.layer.async) {
+                s._queueDeferredNode(this);
             } else {
                 this.applyCollection();
             }
         }
 
-        const ec = this.entityCollection!;
+        let ec = this.entityCollection!;
+        let l = this.layer;
 
         ec._fadingOpacity = l._fadingOpacity;
         ec.scaleByDistance = l.scaleByDistance;
@@ -304,92 +309,11 @@ class EntityCollectionNode {
     }
 
     public isVisible(): boolean {
-        if (this.layer._renderingNodes[this.nodeId]) {
+        if (this.strategy._renderingNodes[this.nodeId]) {
             return true;
         }
         return false;
     }
 }
 
-class EntityCollectionNodeWGS84 extends EntityCollectionNode {
-
-    public isNorth: boolean;
-
-    constructor(layer: Vector, partId: number, parent: EntityCollectionNodeWGS84 | null, id: number, extent: Extent, planet: Planet, zoom: number) {
-        super(layer, partId, parent, id, extent, planet, zoom);
-        this.isNorth = false;
-    }
-
-    public override createChildrenNodes() {
-        const l = this.layer;
-        const ext = this.extent;
-        const size_x = ext.getWidth() * 0.5;
-        const size_y = ext.getHeight() * 0.5;
-        const ne = ext.northEast;
-        const sw = ext.southWest;
-        const id = this.nodeId * 4 + 1;
-        const c = new LonLat(sw.lon + size_x, sw.lat + size_y);
-        const nd = this.childrenNodes;
-        const p = this.layer._planet!;
-        const z = this.zoom + 1;
-
-        nd[NW] = new EntityCollectionNodeWGS84(l, NW, this, id, new Extent(new LonLat(sw.lon, sw.lat + size_y), new LonLat(sw.lon + size_x, ne.lat)), p, z);
-        nd[NE] = new EntityCollectionNodeWGS84(l, NE, this, id, new Extent(c, new LonLat(ne.lon, ne.lat)), p, z);
-        nd[SW] = new EntityCollectionNodeWGS84(l, SW, this, id, new Extent(new LonLat(sw.lon, sw.lat), c), p, z);
-        nd[SE] = new EntityCollectionNodeWGS84(l, SE, this, id, new Extent(new LonLat(sw.lon + size_x, sw.lat), new LonLat(ne.lon, sw.lat + size_y)), p, z);
-    }
-
-    protected override _setExtentBounds() {
-        if (this.extent.northEast.lat > 0) {
-            this.isNorth = true;
-        }
-        this.bsphere.setFromExtent(this.layer._planet!.ellipsoid, this.extent);
-    }
-
-    public override __setLonLat__(entity: Entity): LonLat {
-        if (entity._lonLat.isZero()) {
-            entity._lonLat = this.layer._planet!.ellipsoid.cartesianToLonLat(entity._cartesian);
-        }
-        return entity._lonLat;
-    }
-
-    public override isVisible(): boolean {
-        if (this.isNorth && this.layer._renderingNodesNorth[this.nodeId]) {
-            return true;
-        } else if (this.layer._renderingNodesSouth[this.nodeId]) {
-            return true;
-        }
-        return false;
-    }
-
-    public override isInside(entity: Entity): boolean {
-        return this.extent.isInside(entity._lonLat);
-    }
-
-    public override renderCollection(outArr: EntityCollection[], visibleNodes: NodesDict, renderingNode: number) {
-
-        if (this.isNorth) {
-            this.layer._renderingNodesNorth[this.nodeId] = true;
-        } else {
-            this.layer._renderingNodesSouth[this.nodeId] = true;
-        }
-
-        if (this.deferredEntities.length && !this._inTheQueue) {
-            if (this.layer.async) {
-                this.layer._queueDeferredNode(this);
-            } else {
-                this.applyCollection();
-            }
-        }
-
-        const ec = this.entityCollection!;
-
-        ec._fadingOpacity = this.layer._fadingOpacity;
-        ec.scaleByDistance = this.layer.scaleByDistance;
-        ec.pickingScale = this.layer.pickingScale;
-
-        outArr.push(ec);
-    }
-}
-
-export {EntityCollectionNode, EntityCollectionNodeWGS84};
+export {EntityCollectionNode}

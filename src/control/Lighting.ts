@@ -1,11 +1,14 @@
-import {Control, IControlParams} from "./Control";
+import {Control} from "./Control";
+import type {IControlParams} from "./Control";
 import {Dialog} from '../ui/Dialog';
 import {Layer} from "../layer/Layer";
 import {Slider} from "../ui/Slider";
 import {Sun} from "./Sun";
 import {ToggleButton} from "../ui/ToggleButton";
 import {View} from '../ui/View';
-import {Atmosphere} from "./Atmosphere";
+import {Atmosphere} from "./atmosphere/Atmosphere";
+import {Color} from "../ui/Color";
+import {SimpleSkyBackground} from "../control/SimpleSkyBackground";
 
 interface ILightingParams extends IControlParams {
 
@@ -38,13 +41,16 @@ const ATMOSPHERE_SVG_ICON = `<?xml version="1.0" encoding="utf-8"?><!-- Uploaded
 
 
 const TEMPLATE =
-    `<div class="og-lighing">
+    `<div class="og-lighing og-options-container">
 
          <div class="og-option">
            <div class="og-suncontrol"></div>
          </div>        
          
          <div class="og-option og-atmosphere-opacity">
+         </div>
+         
+         <div class="og-option og-simpleskybackground">
          </div>
          
         <div class="og-lighting-emptyline"></div>
@@ -110,6 +116,10 @@ export class Lighting extends Control {
 
     protected _atmosphereMaxOpacity: Slider;
     protected _atmosphereMinOpacity: Slider;
+
+    protected _simpleSkyBackgroundColorOne: Color;
+    protected _simpleSkyBackgroundColorTwo: Color;
+
     protected _gamma: Slider;
     protected _exposure: Slider;
     protected _night: Slider;
@@ -133,6 +143,7 @@ export class Lighting extends Control {
     public $ambient: HTMLElement | null;
     public $specular: HTMLElement | null;
     public $atmosphereOpacity: HTMLElement | null;
+    public $simpleSkyBackground: HTMLElement | null;
 
 
     constructor(options: ILightingParams = {}) {
@@ -170,6 +181,7 @@ export class Lighting extends Control {
         this.$ambient = null;
         this.$specular = null;
         this.$atmosphereOpacity = null;
+        this.$simpleSkyBackground = null;
 
         this._atmosphereMaxOpacity = new Slider({
             label: "Max.opacity",
@@ -179,6 +191,14 @@ export class Lighting extends Control {
         this._atmosphereMinOpacity = new Slider({
             label: "Min.opacity",
             max: 5
+        });
+
+        this._simpleSkyBackgroundColorOne = new Color({
+            label: "Color One"
+        });
+
+        this._simpleSkyBackgroundColorTwo = new Color({
+            label: "Color Two"
         });
 
         this._gamma = new Slider({
@@ -275,6 +295,7 @@ export class Lighting extends Control {
 
         if (this._panel.el) {
             this.$atmosphereOpacity = this._panel.el.querySelector(".og-atmosphere-opacity");
+            this.$simpleSkyBackground = this._panel.el.querySelector(".og-simpleskybackground");
             this.$gamma = this._panel.el.querySelector(".og-option.og-gamma");
             this.$exposure = this._panel.el.querySelector(".og-option.og-exposure");
             this.$opacity = this._panel.el.querySelector(".og-option.og-opacity");
@@ -346,20 +367,28 @@ export class Lighting extends Control {
 
         if (this.planet!.atmosphereEnabled) {
             this.$atmosphereOpacity!.style.display = "block";
+            this.$simpleSkyBackground!.style.display = "none";
         } else {
             this.$atmosphereOpacity!.style.display = "none";
+            this.$simpleSkyBackground!.style.display = "flex";
         }
+
         atmosphereEnabledBtn.events.on("change", (isActive: boolean) => {
             this.planet!.atmosphereEnabled = isActive;
             if (this.planet!.atmosphereEnabled) {
                 this.$atmosphereOpacity!.style.display = "block";
+                this.$simpleSkyBackground!.style.display = "none";
             } else {
                 this.$atmosphereOpacity!.style.display = "none";
+                this.$simpleSkyBackground!.style.display = "flex";
             }
         });
 
         this._atmosphereMaxOpacity.appendTo(this.$atmosphereOpacity!);
         this._atmosphereMinOpacity.appendTo(this.$atmosphereOpacity!);
+
+        this._simpleSkyBackgroundColorOne.appendTo(this.$simpleSkyBackground!);
+        this._simpleSkyBackgroundColorTwo.appendTo(this.$simpleSkyBackground!);
 
         this._gamma.appendTo(this.$gamma!);
         this._exposure.appendTo(this.$exposure!);
@@ -380,21 +409,25 @@ export class Lighting extends Control {
         this._specular_b.appendTo(this.$specular!);
         this._shininess.appendTo(this.$specular!);
 
-        this._atmosphereMinOpacity.value = this.planet!.atmosphereMinOpacity;
-        this._atmosphereMinOpacity.events.on("change", (val: number) => {
-            this.planet!.atmosphereMinOpacity = val;
-        });
-
+        //
+        // Screen options
+        //
         this._gamma.value = this.planet!.renderer!.gamma;
         this._gamma.events.on("change", (val: number) => {
             this.planet!.renderer!.gamma = val;
         });
 
-        this._panel.el!.querySelector<HTMLSelectElement>("#layers")!.addEventListener("change", (e: Event) => {
-            const l = this.planet!.getLayerByName((e.target as HTMLSelectElement).value);
-            if (l) {
-                this.bindLayer(l);
-            }
+        this._exposure.value = this.planet!.renderer!.exposure;
+        this._exposure.events.on("change", (val: number) => {
+            this.planet!.renderer!.exposure = val;
+        });
+
+        //
+        // Atmosphere parameters
+        //
+        this._atmosphereMinOpacity.value = this.planet!.atmosphereMinOpacity;
+        this._atmosphereMinOpacity.events.on("change", (val: number) => {
+            this.planet!.atmosphereMinOpacity = val;
         });
 
         this._atmosphereMaxOpacity.value = this.planet!.atmosphereMaxOpacity;
@@ -404,9 +437,37 @@ export class Lighting extends Control {
             atmos.opacity = val;
         });
 
-        this._exposure.value = this.planet!.renderer!.exposure;
-        this._exposure.events.on("change", (val: number) => {
-            this.planet!.renderer!.exposure = val;
+        //
+        // Simple Sky Background parameters
+        //
+        let simpleSkyBackgroundControl = this.planet!.renderer!.controls.SimpleSkyBackground as SimpleSkyBackground;
+        if (simpleSkyBackgroundControl) {
+            this._simpleSkyBackgroundColorOne.value = simpleSkyBackgroundControl.colorOne;
+            this._simpleSkyBackgroundColorTwo.value = simpleSkyBackgroundControl.colorTwo;
+        }
+
+        this._simpleSkyBackgroundColorOne.events.on("input", (val: string) => {
+            let simpleSkyBackgroundControl = this.planet!.renderer!.controls.SimpleSkyBackground as SimpleSkyBackground;
+            if (simpleSkyBackgroundControl) {
+                simpleSkyBackgroundControl.colorOne = val;
+            }
+        });
+
+        this._simpleSkyBackgroundColorTwo.events.on("input", (val: string) => {
+            let simpleSkyBackgroundControl = this.planet!.renderer!.controls.SimpleSkyBackground as SimpleSkyBackground;
+            if (simpleSkyBackgroundControl) {
+                simpleSkyBackgroundControl.colorTwo = val;
+            }
+        });
+
+        //
+        // Planet options
+        //
+        this._panel.el!.querySelector<HTMLSelectElement>("#layers")!.addEventListener("change", (e: Event) => {
+            const l = this.planet!.getLayerByName((e.target as HTMLSelectElement).value);
+            if (l) {
+                this.bindLayer(l);
+            }
         });
 
         this._night.events.on("change", (val: number) => {

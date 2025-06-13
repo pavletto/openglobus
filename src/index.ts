@@ -1,3 +1,5 @@
+import '../css/og.css';
+
 import * as jd from './astro/jd';
 import * as math from './math';
 import * as mercator from './mercator';
@@ -9,7 +11,7 @@ import * as terrain from './terrain/index';
 import * as layer from './layer/index';
 import * as webgl from './webgl/index';
 
-import {Globe} from './Globe';
+export * from './Globe';
 
 import {Geoid} from './terrain/Geoid';
 
@@ -17,7 +19,9 @@ import {input} from './input/input';
 
 import {
     Ellipsoid,
-    wgs84
+    wgs84,
+    moon,
+    mars
 } from './ellipsoid/index';
 
 import {
@@ -50,7 +54,7 @@ import {Popup} from './Popup';
 
 import {
     EarthQuadTreeStrategy,
-    MarsQuadTreeStrategy,
+    EquiQuadTreeStrategy,
     QuadTreeStrategy,
     quadTreeStrategyType,
     Wgs84QuadTreeStrategy
@@ -69,36 +73,19 @@ import {
     Control
 } from './control/Control';
 
-import {
-    Entity,
-    EntityCollection,
-    Billboard,
-    Geometry,
-    Label,
-    PointCloud,
-    Polyline,
-    GeoObject
-} from './entity/index';
+export * from './entity/index';
 
-import {
-    Layer,
-    Vector,
-    XYZ,
-    CanvasTiles,
-    WMS,
-    GeoImage,
-    GeoVideo,
-    GeoTexture2d,
-    KML,
-    Material
-} from './layer/index';
+export * from './layer/index';
 
 import {
     EmptyTerrain,
     GlobusTerrain,
-    MapboxTerrain,
-    BilTerrain
+    RgbTerrain,
+    BilTerrain,
+    GlobusRgbTerrain
 } from './terrain/index';
+
+import {MoveAxisEntity} from "./control/geoObjectEditor/MoveAxisEntity";
 
 export {
     bv,
@@ -111,40 +98,25 @@ export {
     scene,
     quadTreeStrategyType,
     wgs84,
+    moon,
+    mars,
     terrain,
     layer,
     webgl,
     Framebuffer,
-    Material,
-    KML,
-    Layer,
-    XYZ,
-    Vector,
-    CanvasTiles,
-    WMS,
-    GeoImage,
-    GeoVideo,
-    GeoTexture2d,
     EmptyTerrain,
     GlobusTerrain,
-    MapboxTerrain,
+    RgbTerrain,
+    GlobusRgbTerrain,
     BilTerrain,
     Control,
     Camera,
     Ellipsoid,
     Planet,
     PlanetCamera,
-    Globe,
     LightSource,
-    Entity,
-    EntityCollection,
-    Billboard,
-    Geometry,
-    Label,
-    PointCloud,
-    Polyline,
+
     Program,
-    GeoObject,
     Handler,
     Multisample,
     Renderer,
@@ -166,8 +138,10 @@ export {
     Geoid,
     Popup,
     QuadTreeStrategy,
-    MarsQuadTreeStrategy,
+    EquiQuadTreeStrategy,
     EarthQuadTreeStrategy,
     Wgs84QuadTreeStrategy,
-    Object3d
+    Object3d,
+
+    MoveAxisEntity,
 };

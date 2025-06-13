@@ -1,10 +1,10 @@
 [![NPM PACKAGE](https://img.shields.io/npm/v/@openglobus/og.svg?logo=npm&logoColor=fff&label=NPM+package&color=limegreen)](https://www.npmjs.com/@openglobus/og)
 ![BUILD](https://github.com/openglobus/openglobus/actions/workflows/push.yml/badge.svg)
-# Openglobus
+# OpenGlobus
 
 [English](README.md) | 简体中文 | [Portuguese-BR](README_pt-BR.md)
 
-[Openglobus](http://www.openglobus.org/) 是一个用于展示带有地图瓦片、影像、矢量数据、标注、三维物体的交互式三维地图（地球）的 JavaScript 库。它基于 WebGL 技术，开源且免费。
+[openglobus](http://www.openglobus.org/) 是一个用于展示带有地图瓦片、影像、矢量数据、标注、三维物体的交互式三维地图（地球）的 JavaScript 库。它基于 WebGL 技术，开源且免费。
 
 这个库的主要目标是令三维地图的功能迅速且美观地展示，并且对用户友好，易于在相关的项目中实施。
 
@@ -81,7 +81,7 @@ yarn add @openglobus/og
 
 UNDER CONSTRUCTION
 Here is a [Wiki](https://github.com/openglobus/openglobus/wiki), also
-check out the [hosted examples](http://www.openglobus.org/examples.html), and
+check out the [hosted examples](https://sandbox.openglobus.org), and
 the [API documentation](http://www.openglobus.org/api/).
 
 ## 如何贡献你的代码
@@ -105,12 +105,10 @@ yarn
 npm run build
 ```
 
-随后会在 `lib/@openglobus/` 目录下生成下列 5 个文件：
+随后会在 `lib/` 目录下生成下列 5 个文件：
 
-- og.umd.js
-- og.umd.js.map
-- og.esm.js
-- og.esm.js.map
+- og.es.js
+- og.es.js.map
 - og.css
 - ./res/...
 
@@ -152,7 +150,7 @@ Third, try an example from the sandbox:
 有多种方式来贡献此项目：
 
 - 帮助我们测试新的或现有的功能，并[提交 bug](https://github.com/openglobus/openglobus/issues)
-- 帮助我们在[谷歌 openglobus 社区](https://groups.google.com/d/forum/openglobus)回答问题以及在 Gitter 上[交流](https://gitter.im/openglobus/og)
+- 帮助我们在[谷歌 openglobus 社区](https://github.com/openglobus/openglobus/discussions)回答问题以及在 Gitter 上[交流](https://gitter.im/openglobus/og)
 - 为 GitHub 上的仓库打个 ⭐
 - 在社交媒体上传播 openglobus，推特：[点我](https://twitter.com/openglobus)
 - 成为一名贡献者

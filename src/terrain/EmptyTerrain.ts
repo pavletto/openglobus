@@ -1,4 +1,5 @@
-import {binarySearchFast, TypedArray} from "../utils/shared";
+import {binarySearchFast} from "../utils/shared";
+import type {TypedArray} from "../utils/shared";
 import {Geoid} from "./Geoid";
 import {LonLat} from "../LonLat";
 import {Planet} from "../scene/Planet";
@@ -14,6 +15,8 @@ export interface IEmptyTerrainParams {
     geoid?: Geoid;
     gridSizeByZoom?: number[]
 }
+
+export type UrlRewriteFunc = (tileX: number, tileY: number, tileZoom: number, tileGroup: number) => string | null | undefined;
 
 /**
  * Class represents terrain provider without elevation data.
@@ -155,6 +158,14 @@ class EmptyTerrain {
         //         return callback(mslAlt);
         //     },
         // ];
+    }
+
+    /**
+     * Sets url rewrite callback, used for custom url rewriting for every tile loading.
+     * @public
+     * @param {UrlRewriteFunc} ur - The callback that returns tile custom created url.
+     */
+    public setUrlRewriteCallback(ur: UrlRewriteFunc) {
     }
 
     public get isIdle(): boolean {

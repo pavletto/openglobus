@@ -1,4 +1,5 @@
-import {createEvents, EventsHandler} from '../Events';
+import {createEvents} from '../Events';
+import type {EventCallback, EventsHandler} from '../Events';
 import {parseHTML, stringTemplate} from '../utils/shared';
 
 export interface IViewParams {
@@ -6,6 +7,7 @@ export interface IViewParams {
     template?: string;
     parent?: View<any> | null;
     classList?: string[];
+    initRender?: boolean;
 }
 
 export type ViewEventsList = ["render"];
@@ -37,6 +39,17 @@ class View<M> {
         this.parent = options.parent || null;
         this._classList = options.classList || [];
         this.el = null;
+        if (options.initRender) {
+            this.render();
+        }
+    }
+
+    public on(name: string, callback: EventCallback, sender?: any, priority?: number) {
+        this.events.on(name, callback, sender, priority);
+    }
+
+    public off(name: string, callback: EventCallback) {
+        this.events.off(name, callback);
     }
 
     static getHTML(template: string, params: any): string {

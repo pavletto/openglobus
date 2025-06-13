@@ -58,6 +58,24 @@ export class Mat4 {
     }
 
     /**
+     * Get rotation matrix around the point
+     * @public
+     * @param {number} angle - Rotation angle in radians
+     * @param {Vec3} [center] - Point that the camera rotates around
+     * @param {Vec3} [up] - Camera up vector
+     */
+    static getRotationAroundPoint(angle: number, center: Vec3 = Vec3.ZERO, up: Vec3 = Vec3.UP): Mat4 {
+        let rot = Mat4.getRotation(angle, up);
+        let tr = new Mat4().setIdentity().translate(center);
+        let ntr = new Mat4().setIdentity().translate(center.negateTo());
+        return tr.mul(rot).mul(ntr);
+    }
+
+    static getRotation(angle: number, up: Vec3 = Vec3.UP): Mat4 {
+        return new Mat4().setRotation(up, angle);
+    }
+
+    /**
      * Sets column-major order array matrix.
      * @public
      * @param {Array.<number>} m - Matrix array.
@@ -109,7 +127,7 @@ export class Mat4 {
      * @public
      * @returns {Mat3} -
      */
-    public toMatrix3(): Mat3 {
+    public getMat3(): Mat3 {
         let res = new Mat3();
         let a = this._m,
             b = res._m;
@@ -528,24 +546,30 @@ export class Mat4 {
 
         let h = right - left,
             i = top - bottom,
-            j = far - near;
+            j = near - far,
+            n2 = 2 * near;
 
-        this._m[0] = (near * 2) / h;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = (near * 2) / i;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = (right + left) / h;
-        this._m[9] = (top + bottom) / i;
-        this._m[10] = -(far + near) / j;
-        this._m[11] = -1;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = -(far * near * 2) / j;
-        this._m[15] = 0;
+        let mm = this._m;
+
+        mm[0] = n2 / h;
+        mm[1] = 0;
+        mm[2] = 0;
+        mm[3] = 0;
+
+        mm[4] = 0;
+        mm[5] = n2 / i;
+        mm[6] = 0;
+        mm[7] = 0;
+
+        mm[8] = (right + left) / h;
+        mm[9] = (top + bottom) / i;
+        mm[10] = (far + near) / j;
+        mm[11] = -1;
+
+        mm[12] = 0;
+        mm[13] = 0;
+        mm[14] = (n2 * far) / j;
+        mm[15] = 0;
 
         return this;
     }

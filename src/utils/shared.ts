@@ -5,10 +5,15 @@
 import {Extent} from "../Extent";
 import {LonLat} from "../LonLat";
 import {Vec2} from "../math/Vec2";
-import {NumberArray2} from "../math/Vec2";
-import {NumberArray3, Vec3} from "../math/Vec3";
-import {NumberArray4, Vec4} from "../math/Vec4";
+import type {NumberArray2} from "../math/Vec2";
+import {Vec3} from "../math/Vec3";
+import type {NumberArray3} from "../math/Vec3";
+import {Vec4} from "../math/Vec4";
+import type {NumberArray4} from "../math/Vec4";
 import {colorTable} from "./colorTable";
+import {Ellipsoid} from "../ellipsoid/Ellipsoid";
+import {wgs84} from "../ellipsoid/wgs84";
+import * as mercator from "../mercator";
 
 export function getDefault(param?: any, def?: any): boolean {
     return param != undefined ? param : def;
@@ -44,6 +49,24 @@ export function stamp(obj: any): number {
 
 export function isString(s: any): boolean {
     return typeof s === "string" || s instanceof String;
+}
+
+function d2h(val: number): string {
+    return val.toString(16).padStart(2, '0');
+}
+
+export function rgbToStringHTML(rgb: NumberArray3 | Vec3): string {
+    let r: string, g: string, b: string;
+    if (rgb instanceof Array) {
+        r = d2h(rgb[0]);
+        g = d2h(rgb[1]);
+        b = d2h(rgb[2]);
+    } else {
+        r = d2h(rgb.x);
+        g = d2h(rgb.y);
+        b = d2h(rgb.z);
+    }
+    return `#${r}${g}${b}`;
 }
 
 /**
@@ -150,6 +173,27 @@ export function stringTemplate(template: string, params?: any): string {
     });
 }
 
+/**
+ * Replace template substrings between '${...}' tokens.
+ * @param {string} template - String with templates in "${" and "}"
+ * @param {Object} params - Template named object with subsrtings.
+ * @returns {string} -
+ *
+ * @example <caption>Example from og.terrain that replaces tile indexes in url:</caption>
+ * var substrings = {
+ *       "x": 12,
+ *       "y": 15,
+ *       "z": 8
+ * }
+ * og.utils.stringTemplate2("http://earth3.openglobus.org/${z}/${y}/${x}.ddm", substrings);
+ * //returns http://earth3.openglobus.org/8/15/12.ddm
+ */
+export function stringTemplate2(template: string, params?: Record<string, any>): string {
+    return template.replace(/\$\{([^}]+)\}/g, (_, key) => {
+        return params?.[key.trim()] ?? "";
+    });
+}
+
 export function getHTML(template: string, params?: any): string {
     return stringTemplate(template, params);
 }
@@ -178,13 +222,19 @@ export function print2d(id: string, text: string, x: number, y: number) {
     el.style.top = `${y}px`;
 }
 
+export function isNumber(value: any): boolean {
+    return typeof value === 'number';
+}
+
 export function defaultString(str?: string, def: string = ""): string {
     return str ? str.trim() : def;
 }
 
-export function createVector3(v?: Vec3 | Vec2 | NumberArray3 | NumberArray2 | null, def?: Vec3): Vec3 {
+export function createVector3(v?: number | Vec3 | Vec2 | NumberArray3 | NumberArray2 | null, def?: Vec3): Vec3 {
     if (v) {
-        if (v instanceof Vec3) {
+        if (isNumber(v)) {
+            return new Vec3(v as number, v as number, v as number);
+        } else if (v instanceof Vec3) {
             return v.clone();
         } else if (v instanceof Array) {
             return Vec3.fromVec(v);
@@ -271,7 +321,7 @@ export function binarySearchFast(arr: number[] | TypedArray, x: number) {
         end = arr.length - 1;
     while (start <= end) {
         let k = Math.floor((start + end) * 0.5);
-        if (arr[k] === x) {
+        if (Math.abs(arr[k] - x) < 1e-3) {
             return k;
         } else if (arr[k] < x) {
             start = k + 1;
@@ -316,6 +366,7 @@ export function binarySearch(ar: any[], el: any, compare_fn: Function): number {
 }
 
 /**
+ * @todo: replace any with generic
  * Binary insertion that uses binarySearch algorithm.
  * @param {any[]} ar - The sorted array to insert.
  * @param {any} el - The item to insert.
@@ -819,7 +870,9 @@ export function makeArray(arr: TypedArray | number[]): number[] {
  * @param {{ result: number[] }} [out]
  */
 
-export function spliceArray(arr: TypedArray | number[], starting: number, deleteCount: number, out?: { result: number[] } | { result: TypedArray }): TypedArray | number[] {
+export function spliceArray(arr: TypedArray | number[], starting: number, deleteCount: number, out?: {
+    result: number[]
+} | { result: TypedArray }): TypedArray | number[] {
     if (ArrayBuffer.isView(arr)) {
         if (starting < 0) {
             deleteCount = Math.abs(starting);
@@ -847,7 +900,9 @@ export function spliceArray(arr: TypedArray | number[], starting: number, delete
  * @param {Number} deleteCount
  * @param {{ result: TypedArray }} [out]
  */
-export function spliceTypedArray<T extends TypedArray>(arr: T, starting: number, deleteCount: number, out?: { result: T }): T {
+export function spliceTypedArray<T extends TypedArray>(arr: T, starting: number, deleteCount: number, out?: {
+    result: T
+}): T {
     if (arr.length === 0) {
         return arr;
     }
@@ -930,14 +985,6 @@ export function getMatrixSubArray32(sourceArr: TypedArray | number[], gridSize: 
 
 /**
  * Returns two float32 triangle coordinate arrays from inside of the source triangle array.
- * @static
- * @param {Array.<number>} sourceArr - Source array
- * @param {number} gridSize - Source array square matrix size
- * @param {number} i0 - First row index source array matrix
- * @param {number} j0 - First column index
- * @param {number} size - Square matrix result size.
- * @param {object} outBounds - Output bounds.
- * @return{Array.<number>} Triangle coordinates array from the source array.
  * @TODO: optimization
  */
 export function getMatrixSubArrayBoundsExt(
@@ -1064,4 +1111,42 @@ export function getUrlParam(paramName: string): number | undefined {
     if (param) {
         return Number(param);
     }
+}
+
+
+/**
+ *
+ * @param x
+ * @param y
+ * @param z
+ * @param imageSize
+ * @param ellipsoid
+ *
+ * console.log(1, getTileImageResolution(0, 0, 1));
+ * console.log(7, getTileImageResolution(66, 44, 7));
+ * console.log(10, getTileImageResolution(536, 358, 10));
+ * console.log(12, getTileImageResolution(2149, 1446, 12));
+ * console.log(13, getTileImageResolution(4301, 2892, 13));
+ * console.log(14, getTileImageResolution(8582, 5736, 14));
+ * console.log(15, getTileImageResolution(17205, 11569, 15));
+ * console.log(16, getTileImageResolution(34419, 23138, 16));
+ * console.log(17, getTileImageResolution(68661, 45892, 17));
+ * console.log(18, getTileImageResolution(137650, 92555, 18));
+ */
+export function getTileImageResolution(x: number, y: number, z: number, imageSize = 256, ellipsoid: Ellipsoid = wgs84) {
+    let ext = mercator.getTileExtent(x, y, z);
+    let b0 = ext.getSouthWest().inverseMercator(),
+        b1 = ext.getNorthEast().inverseMercator();
+    let width = ellipsoid.getGreatCircleDistance(b0, new LonLat(b1.lon, b0.lat)),
+        height = ellipsoid.getGreatCircleDistance(b0, new LonLat(b0.lon, b1.lat));
+
+    return [width / imageSize, height / imageSize];
+}
+
+export function toFixedMax(value: number, maxFixed: number = -1): string {
+    if (maxFixed < 0) {
+        return value.toString();
+    }
+    const factor = Math.pow(10, maxFixed);
+    return (Math.round(value * factor) / factor).toString();
 }

@@ -1,6 +1,6 @@
 import {Button} from "../../ui/Button";
 import {View} from "../../ui/View";
-import {IDialogParams, Dialog} from "../../ui/Dialog";
+import {type IDialogParams, Dialog} from "../../ui/Dialog";
 import {ElevationProfileScene} from "./ElevationProfileScene";
 import {LonLat} from "../../LonLat";
 
@@ -24,8 +24,8 @@ class PointListDialog extends Dialog<ElevationProfileScene> {
             visible: false,
             resizable: true,
             useHide: true,
-            top: 100,
-            left: 700,
+            top: 150,
+            left: 200,
             width: 400,
             height: 300,
             minHeight: 100,

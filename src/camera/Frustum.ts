@@ -1,8 +1,9 @@
 import {Box} from "../bv/Box";
-import {Mat4, NumberArray16} from "../math/Mat4";
-import {NumberArray4} from "../math/Vec4";
+import {Mat4, type NumberArray16} from "../math/Mat4";
+import type {NumberArray4} from "../math/Vec4";
 import {Sphere} from "../bv/Sphere";
 import {Vec3} from "../math/Vec3";
+import {RADIANS_HALF} from "../math";
 
 function planeNormalize(plane: NumberArray4) {
     let t = 1.0 / Math.sqrt(plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]);
@@ -49,6 +50,8 @@ class Frustum {
      * @type {Mat4}
      */
     public projectionViewMatrix: Mat4;
+
+    public projectionViewRTEMatrix: Mat4;
 
     /**
      * Inverse projectionView Matrix.
@@ -102,6 +105,8 @@ class Frustum {
 
         this.projectionViewMatrix = new Mat4();
 
+        this.projectionViewRTEMatrix = new Mat4();
+
         this.inverseProjectionViewMatrix = new Mat4();
 
         this.left = 0.0;
@@ -154,6 +159,10 @@ class Frustum {
         return this.projectionViewMatrix._m;
     }
 
+    public getProjectionViewRTEMatrix(): NumberArray16 {
+        return this.projectionViewRTEMatrix._m;
+    }
+
     public getProjectionMatrix(): NumberArray16 {
         return this.projectionMatrix._m;
     }
@@ -165,13 +174,13 @@ class Frustum {
     /**
      * Sets up camera projection matrix.
      * @public
-     * @param {number} angle - Camera's view angle.
-     * @param {number} aspect - Screen aspect ration.
+     * @param {number} angle - Camera's vertical fov view angle.
+     * @param {number} aspect - Screen aspect ratio.
      * @param {number} near - Near camera distance.
      * @param {number} far - Far camera distance.
      */
     public setProjectionMatrix(angle: number, aspect: number, near: number, far: number) {
-        this.top = near * Math.tan((angle * Math.PI) / 360);
+        this.top = near * Math.tan(angle * RADIANS_HALF);
         this.bottom = -this.top;
         this.right = this.top * aspect;
         this.left = -this.right;
@@ -187,6 +196,10 @@ class Frustum {
             far
         );
         this.projectionMatrix.inverseTo(this.inverseProjectionMatrix);
+    }
+
+    public setProjectionViewRTEMatrix(viewRTEMatrix: Mat4) {
+        this.projectionViewRTEMatrix = this.projectionMatrix.mul(viewRTEMatrix);
     }
 
     /**

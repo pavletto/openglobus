@@ -1,10 +1,10 @@
 [![NPM PACKAGE](https://img.shields.io/npm/v/@openglobus/og.svg?logo=npm&logoColor=fff&label=NPM+package&color=limegreen)](https://www.npmjs.com/@openglobus/og)
 ![BUILD](https://github.com/openglobus/openglobus/actions/workflows/push.yml/badge.svg)
-# Openglobus
+# OpenGlobus
 
 [English](README.md) | [简体中文](README_CN.md) | Portuguese-BR
 
-[Openglobus](http://www.openglobus.org/) é uma biblioteca projetada para dispor um mapa 3D para planetas
+[openglobus](http://www.openglobus.org/) é uma biblioteca projetada para dispor um mapa 3D para planetas
 por meio de "tiles maps" (mapa ou imagens em ladrilho), imagens e dados em vetores, marcadores e objeto 3D. Usando tecnologia WebGL , de código aberto e completamente livre.
 
 O principal objetivo do Openglobus é proporcionar um mapa 3D leve e rápido, com boa aparencia, de interface amigável e fácil implementação para qualquer projeto.
@@ -84,7 +84,7 @@ Openglobus se integra bem com frameworks como React, Angular ou Vuejs [Read more
 
 UNDER CONSTRUCTION
 Here is a [Wiki](https://github.com/openglobus/openglobus/wiki), also
-check out the [hosted examples](http://www.openglobus.org/examples.html), and
+check out the [hosted examples](http://sandbox.openglobus.org), and
 the [API documentation](http://www.openglobus.org/api/).
 
 ## Comece a contribuir
@@ -108,12 +108,10 @@ Run
 npm run build
 ```
 
-Then, it will generate 5 files at `lib/@openglobus/`:
+Then, it will generate files at `lib/`:
 
-- og.umd.js
-- og.umd.js.map
-- og.esm.js
-- og.esm.js.map
+- og.es.js
+- og.es.js.map
 - og.css
 - ./res/...
 
@@ -155,7 +153,7 @@ Third, try an example from the sandbox:
 Há varias maneiras de contribuir com o projeto:
 
 - Ajudando a testar e reportando problemas [bugs](https://github.com/openglobus/openglobus/issues)
-- Ajudando a fazer perguntas [forum](https://groups.google.com/d/forum/openglobus)
+- Ajudando a fazer perguntas [forum](https://github.com/openglobus/openglobus/discussions)
   e [chat](https://gitter.im/openglobus/og)
 - ⭐️ Estamos no Github
 - Espalhe coisas sobre o openglobus no [social media](https://twitter.com/openglobus)

@@ -1,19 +1,23 @@
 import {BaseFramebuffer} from "./BaseFramebuffer";
 import {Clock} from "../Clock";
 import {cons} from "../cons";
-import {EventsHandler, createEvents} from "../Events";
-import {getUrlParam, isEmpty, TypedArray} from "../utils/shared";
+import {createEvents} from "../Events";
+import type {EventsHandler} from "../Events";
+import {getUrlParam, isEmpty} from "../utils/shared";
+import type {TypedArray} from "../utils/shared";
 import {ImageCanvas} from "../ImageCanvas";
-import {NumberArray2, Vec2} from "../math/Vec2";
+import {Vec2} from "../math/Vec2";
+import type {NumberArray2} from "../math/Vec2";
 import {ProgramController} from "./ProgramController";
 import {Program} from "./Program";
 import {Stack} from "../Stack";
+import {throttle} from "../utils/shared";
 
 export type WebGLContextExt = { type: string } & WebGL2RenderingContext;
 export type WebGLBufferExt = { numItems: number; itemSize: number } & WebGLBuffer;
 export type WebGLTextureExt = { default?: boolean } & WebGLTexture;
 export type ImageSource = HTMLCanvasElement | ImageBitmap | ImageData | HTMLImageElement | HTMLVideoElement;
-type CreateTextureFunc = (image: ImageSource, internalFormat?: number, texture?: WebGLTextureExt) => WebGLTextureExt | null;
+type CreateTextureFunc = (image: ImageSource, internalFormat?: number | null, texParami?: number | null, texture?: WebGLTextureExt) => WebGLTextureExt | null;
 
 export interface IHandlerParameters {
     anisotropy?: number;
@@ -25,6 +29,7 @@ export interface IHandlerParameters {
         alpha?: boolean;
         antialias?: boolean;
         premultipliedAlpha?: boolean;
+        preserveDrawingBuffer?: boolean;
     },
     extensions?: string[];
     autoActivate?: boolean;
@@ -51,6 +56,10 @@ const CONTEXT_TYPE = ["webgl2", "webgl"];
 const MAX_LEVELS = 2;
 
 /**
+ * @typedef {"visibilitychange" | "resize"} HandlerEventType
+ */
+
+/**
  * A WebGL handler for accessing low-level WebGL capabilities.
  * @class
  * @param {string | HTMLCanvasElement} canvasTarget - Canvas element target.
@@ -63,10 +72,12 @@ const MAX_LEVELS = 2;
  */
 class Handler {
 
+    protected _throttledDrawFrame: () => void
+
     /**
      * Events.
      * @public
-     * @type {EventsHandler<["visibilitychange", "resize"]>}
+     * @type {EventsHandler<Array<HandlerEventType>>}
      */
     public events: EventsHandler<["visibilitychange", "resize"]>;
 
@@ -90,6 +101,7 @@ class Handler {
      * @type {number}
      */
     public deltaTime: number;
+    public prevDeltaTime: number;
 
     /**
      * WebGL rendering canvas element.
@@ -134,11 +146,12 @@ class Handler {
             alpha?: boolean;
             antialias?: boolean;
             premultipliedAlpha?: boolean;
+            preserveDrawingBuffer?: boolean;
         };
         extensions: string[];
     };
 
-    public _oneByHeight: number;
+    //public _oneByHeight: number;
 
     /**
      * Current WebGL extensions. Becomes here after context initialization.
@@ -193,10 +206,13 @@ class Handler {
 
         this.events = createEvents<["visibilitychange", "resize"]>(["visibilitychange", "resize"]);
 
+        this._throttledDrawFrame = this.drawFrame;
+
         this.defaultClock = new Clock();
 
         this._clocks = [];
 
+        this.prevDeltaTime = 0;
         this.deltaTime = 0;
 
         this.canvas = null;
@@ -218,7 +234,7 @@ class Handler {
             context: params.context || {}
         }
 
-        this._oneByHeight = 1.0 / (this._params.height * this._params.pixelRatio);
+        //this._oneByHeight = 1.0 / (this._params.height * this._params.pixelRatio);
 
         this.extensions = {};
 
@@ -257,6 +273,14 @@ class Handler {
 
         if (params.autoActivate || isEmpty(params.autoActivate)) {
             this.initialize();
+        }
+    }
+
+    public set frameDelay(delay: number) {
+        if (delay === 0) {
+            this._throttledDrawFrame = this.drawFrame;
+        } else {
+            this._throttledDrawFrame = throttle(this.drawFrame, delay);
         }
     }
 
@@ -362,6 +386,7 @@ class Handler {
         internalFormat: string = "RGBA",
         format: string = "RGBA",
         type: string = "UNSIGNED_BYTE",
+        param: string = "CLAMP_TO_EDGE",
         level: number = 0
     ): WebGLTexture | null {
 
@@ -383,8 +408,8 @@ class Handler {
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, (gl as any)[filter.toUpperCase()]);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, (gl as any)[filter.toUpperCase()]);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, (gl as any)[param.toUpperCase()]);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, (gl as any)[param.toUpperCase()]);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -401,7 +426,9 @@ class Handler {
     public createEmptyTexture_n(
         width: number,
         height: number,
-        internalFormat?: number): WebGLTexture | null {
+        internalFormat?: number | null,
+        texParami?: number | null
+    ): WebGLTexture | null {
 
         let gl = this.gl!;
 
@@ -421,8 +448,8 @@ class Handler {
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -434,12 +461,15 @@ class Handler {
      * @param {number} width - Empty texture width.
      * @param {number} height - Empty texture height.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createEmptyTexture_l(
         width: number,
         height: number,
-        internalFormat?: number): WebGLTexture | null {
+        internalFormat?: number | null,
+        texParami?: number | null
+    ): WebGLTexture | null {
 
         let gl = this.gl!;
 
@@ -449,8 +479,8 @@ class Handler {
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat || gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null!);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -461,12 +491,14 @@ class Handler {
      * @public
      * @param {HTMLCanvasElement | Image} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture=null]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_n_webgl1(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -477,8 +509,8 @@ class Handler {
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat || gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -489,12 +521,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_l_webgl1(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -504,8 +538,8 @@ class Handler {
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat || gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -516,12 +550,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_mm_webgl1(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -532,8 +568,8 @@ class Handler {
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat || gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -544,12 +580,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_a_webgl1(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -561,8 +599,8 @@ class Handler {
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameterf(gl.TEXTURE_2D, this.extensions.EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, this._params.anisotropy);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -573,12 +611,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_n_webgl2(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -591,8 +631,8 @@ class Handler {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -603,12 +643,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_l_webgl2(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -621,8 +663,8 @@ class Handler {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -633,12 +675,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_mm_webgl2(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -650,8 +694,8 @@ class Handler {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
 
         return texture;
@@ -662,12 +706,14 @@ class Handler {
      * @public
      * @param {ImageSource} image - Image or Canvas object.
      * @param {number} [internalFormat]
+     * @param {number} [texParami]
      * @param {WebGLTexture | null} [texture]
      * @returns {WebGLTexture | null} - WebGL texture object.
      */
     public createTexture_a_webgl2(
         image: ImageSource,
-        internalFormat?: number,
+        internalFormat?: number | null,
+        texParami?: number | null,
         texture: WebGLTexture | null = null): WebGLTexture | null {
 
         let gl = this.gl!;
@@ -681,8 +727,8 @@ class Handler {
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameterf(gl.TEXTURE_2D, this.extensions.EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, this._params.anisotropy);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texParami || gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texParami || gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null!);
         return texture;
     }
@@ -905,7 +951,7 @@ class Handler {
         this._setDefaults();
 
         this.intersectionObserver = new IntersectionObserver((entries) => {
-            this._toggleVisibilityChange(entries[0].isIntersecting);
+            this._toggleVisibilityChange(entries[entries.length - 1].isIntersecting);
         }, {threshold: 0});
 
         this.intersectionObserver.observe(this.canvas);
@@ -1079,7 +1125,7 @@ class Handler {
             this._canvasSize[0] = this.canvas.width;
             this._canvasSize[1] = this.canvas.height;
 
-            this._oneByHeight = 1.0 / this.canvas.height;
+            //this._oneByHeight = 1.0 / this.canvas.height;
 
             this.gl && this.gl.viewport(0, 0, w, h);
             this.ONCANVASRESIZE && this.ONCANVASRESIZE(this.canvas);
@@ -1137,10 +1183,18 @@ class Handler {
      * Draw single frame.
      * @public
      */
-    public drawFrame() {
+    public drawFrame = () => {
         /** Calculating frame time */
         let now = window.performance.now();
-        this.deltaTime = now - this._lastAnimationFrameTime;
+        let prevDeltaTime = this.deltaTime;
+        //Make some filter:)
+        this.deltaTime = (now - this._lastAnimationFrameTime + this.prevDeltaTime) * 0.5;
+        if (this.deltaTime > 3) {
+            this.deltaTime = 3;
+        } else if (this.deltaTime < 1) {
+            this.deltaTime = 1;
+        }
+        this.prevDeltaTime = prevDeltaTime;
         this._lastAnimationFrameTime = now;
 
         this.defaultClock.tick(this.deltaTime);
@@ -1210,16 +1264,16 @@ class Handler {
      */
     protected _animationFrameCallback() {
         this._requestAnimationFrameId = window.requestAnimationFrame(() => {
-            this.drawFrame();
+            this._throttledDrawFrame();
             this._requestAnimationFrameId && this._animationFrameCallback();
         });
     }
 
     /**
-     * Creates default texture object
+     * Creates default texture object.
      * @public
-     * @param {IDefaultTextureParams | null} params - Texture parameters:
-     * @param {(texture: WebGLTextureExt) => void} [success] - Creation callback
+     * @param {IDefaultTextureParams | null} params - Texture parameters.
+     * @param {function(WebGLTextureExt): void} [success] - Creation callback.
      */
     public createDefaultTexture(params: IDefaultTextureParams | null, success: (texture: WebGLTextureExt) => void) {
 

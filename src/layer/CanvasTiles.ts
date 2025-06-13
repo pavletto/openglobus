@@ -1,8 +1,9 @@
 import * as quadTree from "../quadTree/quadTree";
-import {EventCallback, EventsHandler} from "../Events";
-import {ILayerParams, Layer, LayerEventsList} from "./Layer";
+import type {EventCallback, EventsHandler} from "../Events";
+import {Layer} from "./Layer";
+import type {ILayerParams, LayerEventsList} from "./Layer";
 import {Material} from "../layer/Material";
-import {NumberArray4} from "../math/Vec4";
+import type {NumberArray4} from "../math/Vec4";
 import {Planet} from "../scene/Planet";
 
 type ApplyImageFunc = (material: HTMLCanvasElement | ImageBitmap | HTMLImageElement) => void;
@@ -139,16 +140,6 @@ class CanvasTiles extends Layer {
      * @public
      */
     public override abortLoading() {
-        //const q = this._pendingsQueue;
-        // for (let i = q._shiftIndex + 1; i < q._popIndex + 1; i++) {
-        //     if (q._array[i]) {
-        //         this.abortMaterialLoading(q._array[i]);
-        //     }
-        // }
-        // this._pendingsQueue.clear();
-        // for (let i = 0; i < q.length; i++) {
-        //     this.abortMaterialLoading(q[i]);
-        // }
         this._pendingsQueue.forEach((qi: Material) => {
             this.abortMaterialLoading(qi);
         })
@@ -180,7 +171,7 @@ class CanvasTiles extends Layer {
         let seg = material.segment;
 
         if (this._isBaseLayer) {
-            material.texture = seg._isNorth ? seg.planet.solidTextureOne : seg.planet.solidTextureTwo;
+            material.texture = seg.getDefaultTexture();
         } else {
             material.texture = seg.planet.transparentTexture;
         }

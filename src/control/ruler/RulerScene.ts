@@ -1,5 +1,6 @@
 ﻿import {Entity} from '../../entity/Entity';
-import {createEvents, EventsHandler} from '../../Events';
+import {createEvents} from '../../Events';
+import type {EventsHandler} from '../../Events';
 import {LonLat} from "../../LonLat";
 import {Object3d} from '../../Object3d';
 import {Planet} from "../../scene/Planet";
@@ -7,9 +8,9 @@ import {RenderNode} from '../../scene/RenderNode';
 import {Vector} from '../../layer/Vector';
 import {Vec2} from '../../math/Vec2';
 import {Vec3} from '../../math/Vec3';
-import {IMouseState} from "../../renderer/RendererEvents";
+import type {IMouseState} from "../../renderer/RendererEvents";
 import {Ellipsoid} from "../../ellipsoid/Ellipsoid";
-import {ILabelParams} from "../../entity/Label";
+import type {ILabelParams} from "../../entity/Label";
 
 const OUTLINE_COUNT = 120;
 
@@ -124,7 +125,7 @@ class RulerScene extends RenderNode {
             pickingEnabled: false,
             polygonOffsetUnits: -1.0,
             relativeToGround: true,
-            displayInLayerSwitcher: false
+            hideInLayerSwitcher: true
         });
 
         this._labelLayer = new Vector("ruler-label", {
@@ -132,13 +133,13 @@ class RulerScene extends RenderNode {
             pickingEnabled: false,
             polygonOffsetUnits: -100.0,
             relativeToGround: true,
-            displayInLayerSwitcher: false
+            hideInLayerSwitcher: true
         });
 
         this._cornersLayer = new Vector("corners", {
             entities: [],
             pickingEnabled: true,
-            displayInLayerSwitcher: false,
+            hideInLayerSwitcher: true,
             scaleByDistance: [100, 4000000, 1.0],
             pickingScale: 2
         });

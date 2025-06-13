@@ -5,7 +5,8 @@ import {Planet} from "../scene/Planet";
 import {Program} from "../webgl/Program";
 import {QueueArray} from "../QueueArray";
 import {Segment} from "../segment/Segment";
-import {WebGLBufferExt, WebGLTextureExt, Handler} from "../webgl/Handler";
+import {Handler} from "../webgl/Handler";
+import type {WebGLBufferExt, WebGLTextureExt} from "../webgl/Handler";
 
 interface INormalMapCreatorParams {
     minTableSize?: number;
@@ -158,7 +159,7 @@ export class NormalMapCreator {
         //create vertices hasharray for different grid size segments from 2^4(16) to 2^7(128)
         for (let p = this._minTabelSize; p <= this._maxTableSize; p++) {
 
-            const gs = Math.pow(2, p);
+            const gs = (1 << p);//Math.pow(2, p);
             const gs2 = gs / 2;
 
             let vertices = new Float32Array((gs + 1) * (gs + 1) * 2);

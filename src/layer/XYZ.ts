@@ -1,12 +1,13 @@
 import * as mercator from "../mercator";
-import {Layer, ILayerParams, LayerEventsList} from "./Layer";
+import {Layer} from "./Layer";
+import type {ILayerParams, LayerEventsList} from "./Layer";
 import {RENDERING} from "../quadTree/quadTree";
 import {Segment} from "../segment/Segment";
 import {stringTemplate} from "../utils/shared";
-import {EventsHandler} from "../Events";
+import type {EventsHandler} from "../Events";
 import {Material} from "./Material";
-import {NumberArray4} from "../math/Vec4";
-import {IResponse} from "../utils/Loader";
+import type {NumberArray4} from "../math/Vec4";
+import type {IResponse} from "../utils/Loader";
 
 export interface IXYZParams extends ILayerParams {
     url?: string;
@@ -87,7 +88,6 @@ export class XYZ extends Layer {
     /**
      * Rewrites imagery tile url query.
      * @private
-     * @callback og.layer.XYZ~_urlRewriteCallback
      * @param {Segment} segment - Segment to load.
      * @param {string} url - Created url.
      * @returns {string} - Url query string.
@@ -173,7 +173,7 @@ export class XYZ extends Layer {
     }
 
     public _checkSegment(segment: Segment) {
-        return segment._projection.id === this._planet!.quadTreeStrategy.projection.id;// EPSG4326.id;// EPSG3857.id;
+        return segment._projection.id === this._planet!.quadTreeStrategy.projection.id;
     }
 
     /**
@@ -226,7 +226,6 @@ export class XYZ extends Layer {
                             }
                         }
                     }
-                    //,this.__id
                 );
             } else {
                 material.textureNotExists();
@@ -372,13 +371,14 @@ export class XYZ extends Layer {
             em.southWest.lon = -ENLARGE_MERCATOR_LON;
         }
 
-        if (e.northEast.lat >= mercator.MAX_LAT) {
-            e.northEast.lat = mercator.MAX_LAT;
-        }
-
-        if (e.northEast.lat <= mercator.MIN_LAT) {
-            e.northEast.lat = mercator.MIN_LAT;
-        }
+        // WHY!???
+        // if (e.northEast.lat >= mercator.MAX_LAT) {
+        //     e.northEast.lat = mercator.MAX_LAT;
+        // }
+        //
+        // if (e.northEast.lat <= mercator.MIN_LAT) {
+        //     e.northEast.lat = mercator.MIN_LAT;
+        // }
     }
 }
 

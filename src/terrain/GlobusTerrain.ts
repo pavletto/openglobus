@@ -1,14 +1,17 @@
 import * as mercator from "../mercator";
-import {createEvents, EventsHandler} from "../Events";
-import {createExtent, stringTemplate, TypedArray} from "../utils/shared";
-import {EPSG3857} from "../proj/EPSG3857";
-import {EmptyTerrain, IEmptyTerrainParams} from "./EmptyTerrain";
+import {createEvents} from "../Events";
+import type {EventsHandler} from "../Events";
+import {createExtent, stringTemplate} from "../utils/shared";
+import type {TypedArray} from "../utils/shared";
+import {EmptyTerrain} from "./EmptyTerrain";
+import type {IEmptyTerrainParams, UrlRewriteFunc} from "./EmptyTerrain";
 import {Extent} from "../Extent";
 import {Layer} from "../layer/Layer";
-import {IResponse, Loader} from "../utils/Loader";
+import {Loader} from "../utils/Loader";
+import type {IResponse} from "../utils/Loader";
 import {LonLat} from "../LonLat";
 import {NOTRENDERING} from "../quadTree/quadTree";
-import {Segment} from "../segment/Segment";
+import {Segment, TILEGROUP_COMMON} from "../segment/Segment";
 // import { QueueArray } from '../QueueArray';
 import {Ray} from "../math/Ray";
 import {Vec3} from "../math/Vec3";
@@ -20,6 +23,7 @@ export interface IGlobusTerrainParams extends IEmptyTerrainParams {
     urlRewrite?: UrlRewriteFunc;
     noDataValues?: number[];
     plainGridSize?: number;
+    heightFactor?: number;
 }
 
 type TileData = {
@@ -27,9 +31,9 @@ type TileData = {
     extent: Extent | null
 }
 
-type UrlRewriteFunc = (segment: Segment, url: string) => string;
-
 /**
+ * @deprecated
+ * Use GlobusRgbTerrain
  * Class that loads segment elevation data, converts it to the array and passes it to the planet segment.
  * @class
  * @extends {GlobusTerrain}
@@ -44,6 +48,7 @@ type UrlRewriteFunc = (segment: Segment, url: string) => string;
  * @param {string} [options.responseType="arraybuffer"] - Response type.
  * @param {number} [options.MAX_LOADING_TILES] - Maximum at one time loading tiles.
  * @param {Array.<number>} [gridSizeByZoom] - Array of values, where each value corresponds to the size of a tile(or segment) on the globe. Each value must be power of two.
+ * @param {number} [heightFactor=1] - Elevation height multiplier.
  *
  * @fires GlobusTerrainEvents#load
  * @fires GlobusTerrainEvents#loadend
@@ -78,15 +83,17 @@ class GlobusTerrain extends EmptyTerrain {
     /**
      * Rewrites elevation storage url query.
      * @protected
-     * @type {Function} -
+     * @type {Function}
      */
     protected _urlRewriteCallback: UrlRewriteFunc | null;
+
+    protected _heightFactor: number;
 
 
     constructor(name: string = "", options: IGlobusTerrainParams = {}) {
 
         super({
-            geoidSrc: "//openglobus.org/geoid/egm84-30.pgm",
+            geoidSrc: "https://openglobus.org/geoid/egm84-30.pgm",
             maxNativeZoom: options.maxNativeZoom || 14,
             ...options
         });
@@ -105,13 +112,19 @@ class GlobusTerrain extends EmptyTerrain {
 
         this.name = name || "openglobus";
 
-        this.url = options.url || "//{s}.srtm3.openglobus.org/{z}/{y}/{x}.ddm";
+        this.url = options.url || "https://{s}.srtm3.openglobus.org/{z}/{y}/{x}.ddm";
 
         this.gridSizeByZoom = options.gridSizeByZoom || [
-            64, 32, 32, 16, 16, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 16, 8, 4, 2, 2, 2, 2, 2, 2
+            64, 32, 32, 16, 16, 8, 8, 8, 16, 16, 16, 32, 32, 32, 32, 16, 8, 4, 2, 2, 2, 2, 2, 2
         ];
 
+        this._heightFactor = options.heightFactor != undefined ? options.heightFactor : 1.0;
+
         this.noDataValues = options.noDataValues || [];
+
+        for (let i = 0; i < this.noDataValues.length; i++) {
+            this.noDataValues[i] *= this._heightFactor;
+        }
 
         this.plainGridSize = options.plainGridSize || 32;
 
@@ -158,6 +171,14 @@ class GlobusTerrain extends EmptyTerrain {
         return segment.tileZoom >= 6;
     }
 
+    public setElevationCache(tileIndex: string, tileData: TileData) {
+        this._elevationCache[tileIndex] = tileData;
+    }
+
+    public getElevationCache(tileIndex: string): TileData | undefined {
+        return this._elevationCache[tileIndex];
+    }
+
     public override getHeightAsync(lonLat: LonLat, callback: (h: number) => void, zoom?: number, firstAttempt?: boolean): boolean {
         if (!lonLat || lonLat.lat > mercator.MAX_LAT || lonLat.lat < mercator.MIN_LAT) {
             callback(0);
@@ -166,16 +187,13 @@ class GlobusTerrain extends EmptyTerrain {
 
         firstAttempt = firstAttempt != undefined ? firstAttempt : true;
 
-        let z = zoom || this.maxZoom,
-            z2 = Math.pow(2, z),
-            size = mercator.POLE2 / z2,
-            merc = mercator.forward(lonLat),
-            x = Math.floor((mercator.POLE + merc.lon) / size),
-            y = Math.floor((mercator.POLE - merc.lat) / size);
+        const [x, y, z, tileGroup] = this._planet!.quadTreeStrategy.getTileXY(lonLat, zoom || this.maxZoom);
 
-        let tileIndex = Layer.getTileIndex(x, y, z);
+        let tileIndex = Layer.getTileIndex(x, y, z, tileGroup);
 
-        let cache = this._elevationCache[tileIndex];
+        let cache = this.getElevationCache(tileIndex);
+
+        let merc = mercator.forward(lonLat)
 
         if (cache) {
             if (cache.heights) {
@@ -185,24 +203,28 @@ class GlobusTerrain extends EmptyTerrain {
             }
             return true;
         } else {
-            if (!this._fetchCache[tileIndex]) {
-                let url = this._buildURL(x, y, z);
-                this._fetchCache[tileIndex] = this._loader.fetch({
-                    src: url,
+            let def = this._fetchCache[tileIndex];
+            if (!def) {
+                def = this._loader.fetch({
+                    src: this.buildURL(x, y, z, tileGroup),
                     type: this._dataType
                 });
+                this._fetchCache[tileIndex] = def;
             }
 
-            this._fetchCache[tileIndex].then((response: IResponse) => {
+            def!.then((response: IResponse) => {
 
                 let extent = mercator.getTileExtent(x, y, z);
 
                 if (response.status === "ready") {
+
                     let cache: TileData = {
-                        heights: this._createHeights(response.data, tileIndex, x, y, z, extent),
+                        heights: this._createHeights(response.data, null, tileGroup, x, y, z, extent),
                         extent: extent
                     };
-                    this._elevationCache[tileIndex] = cache;
+
+                    this.setElevationCache(tileIndex, cache);
+
                     callback(this._getGroundHeightMerc(merc, cache));
 
                 } else if (response.status === "error") {
@@ -212,10 +234,10 @@ class GlobusTerrain extends EmptyTerrain {
                         return;
                     }
 
-                    this._elevationCache[tileIndex] = {
+                    this.setElevationCache(tileIndex, {
                         heights: null,
                         extent: extent
-                    };
+                    });
 
                     callback(0);
 
@@ -228,22 +250,6 @@ class GlobusTerrain extends EmptyTerrain {
         }
 
         return false;
-    }
-
-    public getTileCache(lonLat: LonLat, z: number): TileData | undefined {
-        if (!lonLat || lonLat.lat > mercator.MAX_LAT || lonLat.lat < mercator.MIN_LAT) {
-            return;
-        }
-
-        let z2 = Math.pow(2, z),
-            size = mercator.POLE2 / z2,
-            merc = mercator.forward(lonLat),
-            x = Math.floor((mercator.POLE + merc.lon) / size),
-            y = Math.floor((mercator.POLE - merc.lat) / size);
-
-        let tileIndex = Layer.getTileIndex(x, y, z);
-
-        return this._elevationCache[tileIndex];
     }
 
     protected _getGroundHeightMerc(merc: LonLat, tileData: TileData): number {
@@ -286,13 +292,13 @@ class GlobusTerrain extends EmptyTerrain {
             ray = new Ray(xyz, new Vec3(0, -1, 0));
 
         let res = new Vec3();
-        let d = ray.hitTriangle(v0, v1, v2, res);
+        let d = ray.hitTriangleRes(v0, v1, v2, res);
 
         if (d === Ray.INSIDE) {
             return res.y;
         }
 
-        d = ray.hitTriangle(v1, v3, v2, res);
+        d = ray.hitTriangleRes(v1, v3, v2, res);
         if (d === Ray.INSIDE) {
             return res.y;
         }
@@ -329,7 +335,7 @@ class GlobusTerrain extends EmptyTerrain {
     }
 
     public isReadyToLoad(segment: Segment): boolean {
-        return segment._projection.equal(EPSG3857) && this._extent.overlaps(segment.getExtentLonLat());
+        return segment._tileGroup === TILEGROUP_COMMON && this._extent.overlaps(segment.getExtentLonLat());
     }
 
     /**
@@ -347,7 +353,7 @@ class GlobusTerrain extends EmptyTerrain {
 
             if (this.isReadyToLoad(segment)) {
 
-                let cache = this._elevationCache[segment.tileIndex];
+                let cache = this.getElevationCache(segment.tileIndex);
 
                 if (cache) {
                     this._applyElevationsData(segment, cache.heights);
@@ -364,16 +370,19 @@ class GlobusTerrain extends EmptyTerrain {
 
                                 let heights = this._createHeights(
                                     response.data,
-                                    segment.tileIndex,
-                                    segment.tileX, segment.tileY, segment.tileZoom,
+                                    segment,
+                                    segment._tileGroup,
+                                    segment.tileX,
+                                    segment.tileY,
+                                    segment.tileZoom,
                                     segment.getExtent(),
                                     segment.tileZoom === this.maxZoom
                                 );
 
-                                this._elevationCache[segment.tileIndex] = {
+                                this.setElevationCache(segment.tileIndex, {
                                     heights: heights,
                                     extent: segment.getExtent()
-                                };
+                                });
 
                                 this._applyElevationsData(segment, heights);
 
@@ -400,7 +409,7 @@ class GlobusTerrain extends EmptyTerrain {
         return this._s[Math.floor(this._requestCount % (this._requestsPeerSubdomain * this._s.length) / this._requestsPeerSubdomain)];
     }
 
-    public _buildURL(x: number, y: number, z: number): string {
+    public buildURL(x: number, y: number, z: number, tileGroup: number): string {
         return stringTemplate(this.url, {
             s: this._getSubdomain(),
             x: x.toString(),
@@ -416,7 +425,7 @@ class GlobusTerrain extends EmptyTerrain {
      * @returns {string} -
      */
     protected _createUrl(segment: Segment): string {
-        return this._buildURL(segment.tileX, segment.tileY, segment.tileZoom);
+        return this.buildURL(segment.tileX, segment.tileY, segment.tileZoom, segment._tileGroup);
     }
 
     /**
@@ -426,7 +435,11 @@ class GlobusTerrain extends EmptyTerrain {
      * @returns {string} - Url string.
      */
     protected _getHTTPRequestString(segment: Segment): string {
-        return this._urlRewriteCallback ? this._urlRewriteCallback(segment, this.url) : this._createUrl(segment);
+        if (this._urlRewriteCallback) {
+            return this._urlRewriteCallback(segment.tileX, segment.tileY, segment.tileZoom, segment._tileGroup) || this._createUrl(segment);
+        } else {
+            return this._createUrl(segment);
+        }
     }
 
     /**
@@ -434,7 +447,7 @@ class GlobusTerrain extends EmptyTerrain {
      * @public
      * @param {UrlRewriteFunc} ur - The callback that returns tile custom created url.
      */
-    public setUrlRewriteCallback(ur: UrlRewriteFunc) {
+    public override setUrlRewriteCallback(ur: UrlRewriteFunc) {
         this._urlRewriteCallback = ur;
     }
 
@@ -443,7 +456,14 @@ class GlobusTerrain extends EmptyTerrain {
      * @public
      * @returns {Array.<number>} -
      */
-    protected _createHeights(data: any, tileIndex?: string, x?: number, y?: number, z?: number, extent?: Extent, isMaxZoom?: boolean): TypedArray | number[] {
+    protected _createHeights(data: any, segment?: Segment | null, tileGroup?: number, x?: number, y?: number, z?: number, extent?: Extent, isMaxZoom?: boolean): TypedArray | number[] {
+        if (this._heightFactor !== 1) {
+            let res = new Float32Array(data);
+            for (let i = 0, len = res.length; i < len; i++) {
+                res[i] = res[i] * this._heightFactor;
+            }
+            return res;
+        }
         return new Float32Array(data);
     }
 

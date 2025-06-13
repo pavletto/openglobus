@@ -8,6 +8,7 @@
     --grey6: #bfbfbf; /*map button icon color*/
     --grey7: #707070; /*slider progress color*/
     --grey8: #e2e2e2; /*text color*/
+    --grey9: #9f9f9f;
     --blue0: #1700a9ee;
 }
 
@@ -140,19 +141,33 @@ input {
     visibility: hidden !important;
 }
 
-/*.og-dialog {
-    position: absolute;
-    right: 52px;
-    width: 13em;
-    border-radius: 4px;
-    box-shadow: 3px 3px 4px rgba(15, 15, 15, 0.17);
-    background-color: rgba(64, 59, 59, 0.85);
-    z-index: 25000;
-    padding: 0;
-    margin: 0;
-    font-family: "Segoe UI", Frutiger, "Frutiger Linotype", "Dejavu Sans", "Helvetica Neue", Arial, sans-serif;
-    overflow: hidden;
-}*/
+.og-options-container {
+    position: relative;
+    padding: 12px;
+    height: calc(100% - 30px);
+    color: #b6b6b6;
+}
+
+.og-option {
+    width: 100%;
+    position: relative;
+    display: inline-block;
+    flex-direction: row;
+    padding-bottom: 7px;
+    text-overflow: ellipsis;
+    align-items: center;
+    justify-content: left;
+}
+
+.og-option .og-slider {
+    width: 100%;
+}
+
+.og-option .og-slider .og-slider-label,
+.og-option .og-color-label {
+    width: 100px;
+    font-size: 12px;
+}
 
 .og-ddialog {
     position: absolute;
@@ -258,73 +273,88 @@ input {
 /* =============================== */
 /* 1 - LAYER SWITCHER */
 
-.og-layerswitcher_button {
+.og-layerSwitcher_button {
     top: 12px;
     right: 12px;
 }
 
-.og-layer-switcher-record {
+.og-layerSwitcher {
+    position: relative;
+    color: #b6b6b6;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.og-layerSwitcher__title {
+    position: relative;
+    color: #b6b6b6;
+    font-size: 14px;
+    width: 100%;
+    padding: 5px;
+}
+
+.og-layerSwitcher__list {
+    position: relative;
+    width: 100%;
+    display: inline-block;
+    flex-direction: column;
+    padding: 2px;
+}
+
+.og-layerSwitcher__layerButton {
+    width: 75px;
+    height: 75px;
+    position: relative;
+    background-color: #7a7a7a;
+    cursor: pointer;
+    border-radius: 5px;
+    margin: 3px;
+    border: 2px solid rgba(0, 0, 0, 0);
+    padding: 0;
+}
+
+.og-layerSwitcher__layerButton.og-layerSwitcher__visible {
+    border: 2px solid #00ff14;
+}
+
+.og-layerSwitcher__layerButton.og-layerSwitcher__visible img {
+    opacity: 1.0;
+}
+
+
+.og-layerSwitcher__layerButton img {
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 1.0;
+}
+
+.og-layerSwitcher__layerButton img:hover {
+    opacity: 1.0;
+}
+
+.og-layerSwitcher__layerButton_title {
+
+}
+
+.og-layerSwitcher__name {
+    color: var(--grey8);
+    font-size: 12px;
     overflow: hidden;
-    white-space: nowrap;
     text-overflow: ellipsis;
-    color: white;
-    font-size: 14px;
-    font-weight: 250;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.og-layer-switcher-record.og-depth-1,
-.og-layer-switcher-record.og-depth-2 {
-    color: white;
-    font-size: 14px;
-    font-weight: 250;
-}
-
-.og-layer-switcher-record.overlays > * {
-    display: inline;
-}
-
-.og-layer-switcher-record.overlays > input {
-    vertical-align: top;
-}
-
-.og-layer-switcher-record.og-depth-0:nth-child(2) {
-}
-
-.og-layer-switcher-record.og-depth-0 {
-}
-
-.og-layer-switcher-record.og-depth-0 input {
-    margin-left: 18px;
-}
-
-.og-layer-switcher-record-title {
-}
-
-details .og-layer-switcher-record {
-    padding-top: 7px;
-    padding-bottom: 3px;
-}
-
-details > summary {
-    background: var(--grey1);
-    padding: 0px 7px 3px;
-    border-top: 1px solid var(--grey0);
-}
-
-details[open] {
-    padding-bottom: 10px;
-}
-
-.og-layer-switcher-dropZone {
-    display: block !important;
-    height: 4px;
-    margin-left: 4px;
-}
-
-.og-layer-switcher-dropZone.og-drag-over {
-    background-color: var(--blue0);
-    opacity: 0.5;
+    padding: 3px;
+    background-color: rgba(0, 0, 0, 0.5);
+    position: absolute;
+    bottom: 0;
+    width: calc(100% - 6px);
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    max-height: 25px;
 }
 
 /* =============================== */
@@ -605,31 +635,30 @@ details[open] {
     position: relative;
 }
 
+.og-emptyline,
 .og-lighing .og-lighting-emptyline {
     width: 100%;
     padding: 3px;
 }
 
-.og-lighing .og-option {
+.og-emptyline-2 {
     width: 100%;
-    position: relative;
-    display: inline-block;
-    flex-direction: row;
-    padding-bottom: 7px;
-    text-overflow: ellipsis;
-    align-items: center;
-    justify-content: left;
+    padding: 5px;
 }
 
 .og-lighing .og-slider {
     width: 100%;
 }
 
-.og-lighing .og-slider .og-slider-label {
+.og-lighing .og-slider .og-slider-label,
+.og-lighing .og-color-label {
     width: 100px;
     font-size: 12px;
 }
 
+.og-lighing .og-color {
+    padding-right: 10px;
+}
 
 .og-lighing #layers {
     font-family: monospace;
@@ -666,7 +695,7 @@ details[open] {
 
 .og-lat-val,
 .og-lon-val {
-    width: 79px;
+    width: 90px;
     padding-right: 3px;
     text-align: left;
     text-overflow: unset;
@@ -674,7 +703,7 @@ details[open] {
 }
 
 .og-height {
-    width: 36px;
+    width: 50px;
     text-align: right;
     text-overflow: ellipsis;
     padding-left: 3px;
@@ -696,6 +725,28 @@ details[open] {
     right: 50%;
     position: absolute;
     pointer-events: none;
+}
+
+
+/*
+==========================
+    Atmosphere Config
+==========================
+ */
+.og-atmosphere_button {
+    position: absolute;
+    left: 10px;
+    top: 230px;
+}
+
+.og-atmosphere.og-options-container .og-slider-label {
+    width: 300px;
+    overflow: hidden;
+    height: 20px;
+}
+
+.og-atmosphere.og-options-container .og-slider input {
+    width: 87px;
 }
 
 /*
@@ -733,7 +784,7 @@ TIMELINE
     width: 100%;
     height: 100%;
     background: rgb(45 45 45);
-    position: absolute;
+    position: relative;
     left: 0;
     bottom: 0;
     overflow: hidden;
@@ -819,7 +870,8 @@ TIMELINE
     display: flex;
     flex-direction: row;
     width: 200px;
-    height: 20px;
+    /*height: 20px;*/
+    gap: 5px;
 }
 
 .og-slider .og-slider-label {
@@ -831,14 +883,16 @@ TIMELINE
     display: flex;
     align-items: center;
     text-align: left;
+    margin-right: 5px;
 }
 
 .og-slider .og-slider-panel {
     position: relative;
     width: 100%;
-    height: 100%;
+    height: 20px;
     background-color: var(--grey1);
     z-index: 1;
+    border-radius: 5px;
 }
 
 .og-slider .og-slider-panel .og-slider-progress {
@@ -846,6 +900,8 @@ TIMELINE
     height: 100%;
     background-color: var(--grey7);
     pointer-events: none;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
 }
 
 .og-slider .og-slider-panel .og-slider-pointer {
@@ -868,6 +924,7 @@ TIMELINE
     color: var(--grey3);
     padding-left: 5px;
     width: 60px;
+    border-radius: 5px;
 }
 
 .og-slider input:focus-visible {
@@ -885,6 +942,116 @@ TIMELINE
 .og-slider input[type=number] {
     -moz-appearance: textfield;
 }
+
+
+/*
+    INPUT
+*/
+
+.og-checkbox,
+.og-input {
+    display: flex;
+    flex-direction: row;
+    margin: 5px;
+}
+
+.og-checkbox .og-input-label,
+.og-input .og-input-label {
+    width: 100%;
+    height: 100%;
+    color: var(--grey6);
+    font-family: "Segoe UI", Frutiger, "Frutiger Linotype", "Dejavu Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    align-items: center;
+    text-align: left;
+    margin-right: 5px;
+}
+
+.og-checkbox input,
+.og-input input {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background: var(--grey5);
+    border: 1px solid var(--grey1);
+    z-index: 0;
+    color: var(--grey3);
+    padding-left: 5px;
+    border-radius: 5px;
+}
+
+.og-checkbox input:focus-visible,
+.og-input input:focus-visible {
+    outline: none;
+}
+
+.og-checkbox input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    border: 1px solid var(--grey1);
+    border-radius: 3px;
+    background: var(--grey8);
+    cursor: pointer;
+    position: relative;
+    padding: 0;
+}
+
+.og-checkbox input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    width: 3px;
+    height: 6px;
+    border: solid black;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    top: 2px;
+    left: 3.5px;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.og-checkbox input[type="checkbox"]:checked::before {
+    opacity: 1;
+}
+
+.og-checkbox input[type="checkbox"]:hover {
+    border-color: var(--grey2);
+}
+
+.og-checkbox .og-input-label {
+    margin-right: 0;
+}
+
+.og-checkbox-input {
+    width: 100%;
+}
+
+.og-input-disabled {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.og-input-disabled input[type="checkbox"] {
+    background: var(--grey9);
+}
+
+/* Chrome, Safari, Edge, Opera */
+/*.og-input input::-webkit-outer-spin-button,*/
+/*.og-input input::-webkit-inner-spin-button {*/
+/*    -webkit-appearance: none;*/
+/*    margin: 0;*/
+/*}*/
+
+/* Firefox */
+.og-input input[type=number] {
+    -moz-appearance: textfield;
+}
+
 
 .og-selection_button {
     top: 117px;
@@ -1041,7 +1208,7 @@ TIMELINE
 
 .og-elevationprofile_pointer {
     position: absolute;
-    let: 0;
+    left: 0;
     top: 0;
     height: 100%;
 }
@@ -1056,7 +1223,7 @@ TIMELINE
 
 .og-elevationprofile-label {
     position: absolute;
-    top: left;
+    top: 0;
     left: 0;
     color: white;
 }
@@ -1077,6 +1244,16 @@ TIMELINE
     flex-direction: row;
     justify-content: center;
     align-items: center;
+}
+
+.og-simpleskybackground {
+    display: flex;
+}
+
+.og-color-label {
+    color: var(--grey6);
+    font-family: "Segoe UI", Frutiger, "Frutiger Linotype", "Dejavu Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
 }
 
 @keyframes ldio-p0v5a1f6oz {
@@ -1142,4 +1319,67 @@ TIMELINE
 
 .ldio-p0v5a1f6oz div {
     box-sizing: content-box;
+}
+
+.og-editor-ground_button {
+    width: fit-content;
+    background: var(--grey1);
+    padding: 4px 6px 8px;
+    margin-left: 5px;
+    margin-top: 15px;
+}
+
+.og-editor_toolbar {
+    padding-bottom: 8px;
+    display: flex;
+}
+
+.og-editor_toolbar-button {
+    width: 25px;
+    height: 25px;
+    float: left;
+    margin: 3px;
+}
+
+/*
+    OBJECT3D_COLLECTION
+ */
+
+.og-object3d-manager .og-ddialog-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.og-object3d-collection {
+    width: 100%;
+    height: 100%;
+}
+
+.og-object3d-collection__item {
+    width: 75px;
+    height: 75px;
+    position: relative;
+    background-color: #7a7a7a;
+    cursor: pointer;
+    border-radius: 5px;
+    margin: 3px;
+    border: 2px solid rgba(0, 0, 0, 0);
+
+}
+
+.og-object3d-collection__item.active {
+    border: solid #00e0be 2px;
+}
+
+.og-object3d-collection__item_name {
+    width: 100%;
+    height: 20px;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    background: #3d3d3da3;
+    color: white;
+    padding-top: 3px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
 }

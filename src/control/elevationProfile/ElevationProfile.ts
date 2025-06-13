@@ -1,5 +1,5 @@
 import {Deferred} from '../../Deferred';
-import {createEvents, EventsHandler} from '../../Events';
+import {createEvents, type EventsHandler} from '../../Events';
 import {Vec3} from "../../math/Vec3";
 import {Planet} from "../../scene/Planet";
 import {LonLat} from "../../LonLat";
@@ -280,8 +280,10 @@ export class ElevationProfile {
         this._pointsReady = false;
         this._isWarning = false;
 
-        if (!pointsLonLat || !pointsLonLat.length)
+        if (!pointsLonLat || !pointsLonLat.length) {
             def.reject();
+            return def.promise;
+        }
 
         this.events.dispatch(this.events.startcollecting, this);
 

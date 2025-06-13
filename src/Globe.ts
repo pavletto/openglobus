@@ -1,27 +1,26 @@
-// #StandWithUkraine
-
 import {CompassButton} from "./control/CompassButton";
 import {Control} from "./control/Control";
 import {EarthCoordinates} from "./control/EarthCoordinates";
-import {EarthNavigation} from "./control/EarthNavigation";
 import {Ellipsoid} from "./ellipsoid/Ellipsoid";
 import {EmptyTerrain} from "./terrain/EmptyTerrain";
 import {Handler} from "./webgl/Handler";
 import {isEmpty} from "./utils/shared";
 import {Layer} from "./layer/Layer";
 import {MouseNavigation} from "./control/MouseNavigation";
-import {NumberArray2} from "./math/Vec2";
-import {NumberArray4} from "./math/Vec4";
+import type {NumberArray2} from "./math/Vec2";
+import type {NumberArray4} from "./math/Vec4";
 import {Planet} from "./scene/Planet";
 import {ScaleControl} from "./control/ScaleControl";
 import {Sun} from "./control/Sun";
 import {TouchNavigation} from "./control/TouchNavigation";
-import {HTMLDivElementExt, Renderer} from "./renderer/Renderer";
+import {Renderer} from "./renderer/Renderer";
+import type {HTMLDivElementExt} from "./renderer/Renderer";
 import {RenderNode} from "./scene/RenderNode";
 import {ZoomControl} from "./control/ZoomControl";
 import {Extent} from "./Extent";
+import type {IAtmosphereParams} from "./control/atmosphere/Atmosphere";
 
-interface IGlobeParams {
+export interface IGlobeParams {
     attributionContainer?: HTMLElement;
     target?: string | HTMLElement;
     skybox?: RenderNode;
@@ -41,10 +40,9 @@ interface IGlobeParams {
     quadTreeStrategyPrototype?: any;
     maxLoadingRequests?: number;
     atmosphereEnabled?: boolean;
-
+    transitionOpacityEnabled?: boolean;
     terrain?: EmptyTerrain;
     controls?: Control[];
-    useEarthNavigation?: boolean;
     minSlope?: number;
     sun?: {
         active?: boolean;
@@ -56,6 +54,11 @@ interface IGlobeParams {
 
     fontsSrc?: string;
     resourcesSrc?: string;
+    atmosphereParameters?: IAtmosphereParams;
+    minDistanceBeforeMemClear?: number;
+    vectorTileSize?: number;
+    gamma?: number;
+    exposure?: number;
 }
 
 const DEFAULT_NIGHT_SRC = `/night.png`;
@@ -66,37 +69,40 @@ const DEFAULT_RESOURCES_SRC = '/res';
 const PLANET_NAME_PREFIX = "globus_planet_";
 
 /**
+ * @typedef {Array<number>} LonLatCoordinate
+ * @typedef {Array<LonLatCoordinate>} ExtentBoundingBox
+ */
+
+/**
  * Creates a WebGL context with globe.
  * @class
  *
  * @example <caption>Basic initialization</caption>
  * globus = new Globe({
- *     'atmosphere': false,
- *     'target': 'globus',
- *     'name': 'Earth',
- *     'controls': [
- *          new control.MouseNavigation({ autoActivate: true }),
- *          new control.KeyboardNavigation({ autoActivate: true }),
- *          new control.EarthCoordinates({ autoActivate: true, center: false }),
- *          new control.LayerSwitcher({ autoActivate: true }),
- *          new control.ZoomControl({ autoActivate: true }),
- *          new control.TouchNavigation({ autoActivate: true }),
- *          new control.Sun({ autoActivate: true })
+ *     atmosphere: false,
+ *     target: 'globus',
+ *     name: 'Earth',
+ *     controls: [
+ *          new control.MouseNavigation(),
+ *          new control.KeyboardNavigation(),
+ *          new control.EarthCoordinates(),
+ *          new control.LayerSwitcher({),
+ *          new control.ZoomControl(),
+ *          new control.TouchNavigation(),
+ *          new control.Sun()
  *      ],
- *     'terrain': new GlobusTerrain(),
- *     'layers': [
- *          new XYZ("OpenStreetMap", { isBaseLayer: true, url: "http://b.tile.openstreetmap.org/{z}/{x}/{y}.png", visibility: true, attribution: 'Data @ <a href="http://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="http://www.openstreetmap.org/copyright">ODbL</a>' })
- *      ],
- *     'autoActivate': true
+ *     terrain: new GlobusRGBTerrain(),
+ *     layers: [new OpenStreetMap(), new Bing()],
+ *     atmosphereEnabled: true
  * });
  *
  * @param {IGlobeParams} options - Options:
  * @param {string|HTMLElement} options.target - HTML element id where planet canvas have to be created.
  * @param {string} [options.name] - Planet name. Default is uniq identifier.
  * @param {EmptyTerrain} [options.terrain] - Terrain provider. Default no terrain - og.terrain.EmptyTerrain.
- * @param {Array.<Control>} [options.controls] - Renderer controls array.
+ * @param {Array.<Control>} [options.controls] - Controls.
  * @param {Array.<Layer>} [options.layers] - Planet layers.
- * @param {Extent| [[number, number],[number, number]]} [options.viewExtent] - Viewable starting extent.
+ * @param {Extent | ExtentBoundingBox} [options.viewExtent] [options.viewExtent] - Viewable starting extent.
  * @param {boolean} [options.autoActivate=true] - Globe rendering auto activation flag. True is default.
  * @param {HTMLElement} [options.attributionContainer] - Container for attribution list.
  * @param {number} [options.maxGridSize=128] = Maximal segment grid size. 128 is default
@@ -114,6 +120,10 @@ const PLANET_NAME_PREFIX = "globus_planet_";
  * @param {number} [options.msaa=0] - MSAA antialiasing parameter: 2,4,8,16. Default is 0.
  * @param {number} [options.dpi] - Device pixel ratio. Default is current screen DPI.
  * @param {boolean} [options.atmosphereEnabled] - Enables atmosphere effect.
+ * @param {boolean} [options.transtitionOpacityEnabled] - Enables terrain smooth opacity transition effect.
+ * @param {IAtmosphereParams} [options.atmosphereParameters] - Atmosphere model parameters.
+ * @param {number} [options.gamma] - Gamma
+ * @param {number} [options.exposure] - Exposure
  */
 
 class Globe {
@@ -206,12 +216,15 @@ class Globe {
                 context: {
                     //alpha: false,
                     antialias: false,
-                    premultipliedAlpha: false
+                    premultipliedAlpha: false,
+                    preserveDrawingBuffer: false
                 }
             }), {
                 autoActivate: false,
                 msaa: options.msaa,
-                fontsSrc: options.fontsSrc
+                fontsSrc: options.fontsSrc,
+                gamma: options.gamma,
+                exposure: options.exposure,
             }
         );
 
@@ -229,8 +242,8 @@ class Globe {
             frustums: options.frustums,
             ellipsoid: options.ellipsoid,
             maxGridSize: options.maxGridSize,
-            nightTextureSrc: options.nightTextureSrc === null ? null : `${options.resourcesSrc || DEFAULT_RESOURCES_SRC}${DEFAULT_NIGHT_SRC}`,
-            specularTextureSrc: options.specularTextureSrc === null ? null : `${options.resourcesSrc || DEFAULT_RESOURCES_SRC}${DEFAULT_SPEC_SRC}`,
+            nightTextureSrc: options.nightTextureSrc === null ? null : options.nightTextureSrc || `${options.resourcesSrc || DEFAULT_RESOURCES_SRC}${DEFAULT_NIGHT_SRC}`,
+            specularTextureSrc: options.specularTextureSrc === null ? null : options.specularTextureSrc || `${options.resourcesSrc || DEFAULT_RESOURCES_SRC}${DEFAULT_SPEC_SRC}`,
             minAltitude: options.minAltitude,
             maxAltitude: options.maxAltitude || 15000000,
             maxEqualZoomAltitude: options.maxEqualZoomAltitude,
@@ -238,7 +251,11 @@ class Globe {
             minEqualZoomCameraSlope: options.minEqualZoomCameraSlope,
             quadTreeStrategyPrototype: options.quadTreeStrategyPrototype,
             maxLoadingRequests: options.maxLoadingRequests,
-            atmosphereEnabled: options.atmosphereEnabled
+            atmosphereEnabled: options.atmosphereEnabled,
+            transitionOpacityEnabled: options.transitionOpacityEnabled,
+            atmosphereParameters: options.atmosphereParameters,
+            minDistanceBeforeMemClear: options.minDistanceBeforeMemClear,
+            vectorTileSize: options.vectorTileSize,
         });
 
         // Attach terrain provider (can be one object or array)
@@ -261,7 +278,7 @@ class Globe {
         } else {
             this.planet.addControls([
                 new ZoomControl(),
-                options.useEarthNavigation ? new EarthNavigation() : new MouseNavigation({minSlope: options.minSlope}),
+                new MouseNavigation(),
                 new TouchNavigation(),
                 new EarthCoordinates(),
                 new ScaleControl(),
@@ -335,7 +352,7 @@ class Globe {
         this._canvas.style.opacity = "0";
     }
 
-    public attachTo(target: HTMLElement | string) {
+    public attachTo(target: HTMLElement | string, isFirst?: boolean) {
 
         this.detach();
 
@@ -348,7 +365,13 @@ class Globe {
 
         if (t) {
             this.$target = t as HTMLElement;
-            t.appendChild(this.$inner);
+            if (isFirst && this.$target.firstChild) {
+                this.$target.insertBefore(this.$inner, this.$target.firstChild);
+            } else {
+                t.appendChild(this.$inner);
+            }
+        } else {
+            console.warn(`Target container not found. Provided target: ${target}`);
         }
     }
 
@@ -357,12 +380,16 @@ class Globe {
             // Remember that when container is zero
             // sized(display none etc.) renderer frame will be stopped
             this.$target.removeChild(this.$inner);
+            this.$target = null;
         }
     }
 
     public destroy() {
         this.detach();
+        this.planet.layers.forEach(l => l.remove());
+        this.planet.destroy();
         this.renderer.destroy();
+        (window as any)[this._instanceID] = null;
     }
 }
 

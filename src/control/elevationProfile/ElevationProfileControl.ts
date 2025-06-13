@@ -1,14 +1,14 @@
-import {Control, IControlParams} from "../Control";
-import {Dialog, IDialogParams} from "../../ui/Dialog";
+import {Control, type IControlParams} from "../Control";
+import {Dialog} from "../../ui/Dialog";
 import {View} from "../../ui/View";
 import {ToggleButton} from "../../ui/ToggleButton";
 import {ElevationProfileView} from "./ElevationProfileView";
 import {ElevationProfileScene} from "./ElevationProfileScene";
-import {MouseNavigation} from "../MouseNavigation";
+import {OldMouseNavigation} from "../OldMouseNavigation";
 import {throttle} from "../../utils/shared";
 import {ElevationProfileButtonsView} from "./ElevationProfileButtonsView";
 import {PointListDialog} from "./PointListDialog";
-import {GroundItem, TrackItem} from "./ElevationProfile";
+import type {GroundItem, TrackItem} from "./ElevationProfile";
 import {ElevationProfileLegend} from "./ElevationProfileLegend";
 
 const TEMPLATE =
@@ -61,7 +61,7 @@ export class ElevationProfileControl extends Control {
             useHide: true,
             top: 175,
             left: 65,
-            width: 700,
+            width: 400,
             height: 200,
             minHeight: 100,
             minWidth: 100
@@ -155,7 +155,6 @@ export class ElevationProfileControl extends Control {
     }
 
     override onactivate() {
-        (this.renderer!.controls.mouseNavigation as MouseNavigation).deactivateDoubleClickZoom();
         this.planet && this._elevationProfileScene.bindPlanet(this.planet);
         this.renderer && this.renderer.addNode(this._elevationProfileScene);
     }
@@ -163,7 +162,6 @@ export class ElevationProfileControl extends Control {
     override ondeactivate() {
         this._poiListDialog.setVisibility(false);
         this._elevationProfileView.model.clear();
-        (this.renderer!.controls.mouseNavigation as MouseNavigation).activateDoubleClickZoom();
         this.renderer && this.renderer.removeNode(this._elevationProfileScene);
         this._dialog.hide();
     }
