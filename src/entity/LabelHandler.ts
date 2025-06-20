@@ -260,7 +260,7 @@ class LabelHandler extends BaseBillboardHandler {
         gl.uniform3fv(shu.scaleByDistance, ec.scaleByDistance);
         gl.uniform1f(shu.opacity, ec._fadingOpacity);
         gl.uniform1f(shu.planetRadius, (ec.renderNode as Planet)._planetRadius2 || 0);
-        gl.uniform2fv(shu.viewport, [h.canvas!.clientWidth, h.canvas!.clientHeight]);
+        gl.uniform2fv(shu.viewport, [h.getClientWidth(), h.getClientHeight()]);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this._texCoordBuffer!);
         gl.vertexAttribPointer(sha.a_texCoord, this._texCoordBuffer!.itemSize, gl.FLOAT, false, 0, 0);
@@ -340,7 +340,7 @@ class LabelHandler extends BaseBillboardHandler {
         gl.uniform3fv(shu.scaleByDistance, ec.scaleByDistance);
         gl.uniform1f(shu.opacity, ec._fadingOpacity);
         gl.uniform1f(shu.planetRadius, (rn as Planet)._planetRadius2 || 0);
-        gl.uniform2fv(shu.viewport, [h.canvas!.clientWidth, h.canvas!.clientHeight]);
+        gl.uniform2fv(shu.viewport, [h.getClientWidth(), h.getClientHeight()]);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this._texCoordBuffer!);
         gl.vertexAttribPointer(sha.a_texCoord, this._texCoordBuffer!.itemSize, gl.FLOAT, false, 0, 0);

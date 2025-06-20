@@ -24,8 +24,8 @@ export class BaseFramebuffer {
     constructor(handler: Handler, options: IBaseFramebufferParams = {}) {
         this.handler = handler;
         this._fbo = null;
-        this._width = options.width || handler.canvas!.width;
-        this._height = options.height || handler.canvas!.height;
+        this._width = options.width || handler.originalCanvas!.width;
+        this._height = options.height || handler.originalCanvas!.height;
         this._depthComponent = options.depthComponent != undefined ? options.depthComponent : "DEPTH_COMPONENT16";
         this._useDepth = options.useDepth != undefined ? options.useDepth : true;
         this._active = false;

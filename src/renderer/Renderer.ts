@@ -276,8 +276,8 @@ class Renderer {
         this.renderNodes = {};
 
         this.activeCamera = new Camera({
-            width: this.handler.canvas?.width,
-            height: this.handler.canvas?.height,
+            width: this.handler.originalCanvas?.width,
+            height: this.handler.originalCanvas?.height,
             eye: new Vec3(0, 0, 0),
             look: new Vec3(0, 0, -1),
             up: new Vec3(0, 1, 0)
@@ -500,7 +500,7 @@ class Renderer {
      * @returns {number} -
      */
     public getWidth(): number {
-        return this.handler.canvas!.clientWidth;
+        return this.handler.getClientWidth();
     }
 
     /**
@@ -509,7 +509,7 @@ class Renderer {
      * @returns {number} -
      */
     public getHeight(): number {
-        return this.handler.canvas!.clientHeight;
+        return this.handler.getClientHeight();
     }
 
     /**
@@ -518,7 +518,7 @@ class Renderer {
      * @returns {Vec2} -
      */
     public getCenter(): Vec2 {
-        let cnv = this.handler.canvas!;
+        let cnv = this.handler.originalCanvas!;
         return new Vec2(Math.round(cnv.width * 0.5), Math.round(cnv.height * 0.5));
     }
 
@@ -528,8 +528,8 @@ class Renderer {
      * @returns {Vec2} -
      */
     public getClientCenter(): Vec2 {
-        let cnv = this.handler.canvas!;
-        return new Vec2(Math.round(cnv.clientWidth * 0.5), Math.round(cnv.clientHeight * 0.5));
+        let cnv = this.handler;
+        return new Vec2(Math.round(cnv.getClientWidth() * 0.5), Math.round(cnv.getClientHeight() * 0.5));
     }
 
     /**
@@ -691,14 +691,14 @@ class Renderer {
 
         this.handler.ONCANVASRESIZE = () => {
             this._resizeStart();
-            this.events.dispatch(this.events.resize, this.handler.canvas);
+            this.events.dispatch(this.events.resize, this.handler.originalCanvas);
             this._resizeEnd();
             //clearTimeout(__resizeTimeout);
             // __resizeTimeout = setTimeout(() => {
             //     this._resizeEnd();
-            //     this.events.dispatch(this.events.resizeend, this.handler.canvas);
+            //     this.events.dispatch(this.events.resizeend, this.handler.originalCanvas);
             // }, 320);
-            this.events.dispatch(this.events.resizeend, this.handler.canvas);
+            this.events.dispatch(this.events.resizeend, this.handler.originalCanvas);
         };
 
         this.screenFramePositionBuffer = this.handler.createArrayBuffer(new Float32Array([1, 1, -1, 1, 1, -1, -1, -1]), 2, 4);
@@ -730,7 +730,7 @@ class Renderer {
     }
 
     public _resizeStart() {
-        let c = this.handler.canvas!;
+        let c = this.handler.originalCanvas;
 
         this.activeCamera!.setViewportSize(c.width, c.height);
         this.sceneFramebuffer!.setSize(c.width * 0.5, c.height * 0.5);
@@ -738,14 +738,14 @@ class Renderer {
     }
 
     public _resizeEnd() {
-        let c = this.handler.canvas!;
+        let c = this.handler.originalCanvas;
 
         this.activeCamera!.setViewportSize(c.width, c.height);
         this.sceneFramebuffer!.setSize(c.width, c.height);
         this.blitFramebuffer && this.blitFramebuffer.setSize(c.width, c.height, true);
 
         this.toneMappingFramebuffer && this.toneMappingFramebuffer.setSize(c.width, c.height, true);
-        this.screenDepthFramebuffer && this.screenDepthFramebuffer.setSize(c.clientWidth, c.clientHeight, true);
+        this.screenDepthFramebuffer && this.screenDepthFramebuffer.setSize(this.handler.getClientWidth(), this.handler.getClientHeight(), true);
         //this.depthFramebuffer && this.depthFramebuffer.setSize(c.clientWidth, c.clientHeight, true);
 
         if (this.handler.gl!.type === "webgl") {
@@ -1091,7 +1091,7 @@ class Renderer {
 
     public getImageDataURL(type: string = "image/png", quality: number = 1.0): string {
         this.draw();
-        return this.handler.canvas ? this.handler.canvas.toDataURL(type, quality) : "";
+        return this.handler.originalCanvas ? this.handler.originalCanvas.toDataURL(type, quality) : "";
     }
 
     protected _screenFrameMSAA() {

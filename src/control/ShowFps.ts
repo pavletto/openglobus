@@ -22,7 +22,7 @@ export class ShowFps extends Control {
         print2d(
             "ogShowFpsControl",
             (1000.0 / this.renderer!.handler.deltaTime).toFixed(1),
-            this.renderer!.handler.canvas!.clientWidth - 60,
+            this.renderer!.handler.originalCanvas!.clientWidth - 60,
             0
         );
     }

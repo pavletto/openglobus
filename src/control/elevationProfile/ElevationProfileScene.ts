@@ -583,11 +583,11 @@ class ElevationProfileScene extends RenderNode {
     }
 
     protected _onGroundPointerEnter = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "pointer";
+        e.renderer.handler.originalCanvas!.style.cursor = "pointer";
     }
 
     protected _onGroundPointerLeave = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "default";
+        e.renderer.handler.originalCanvas!.style.cursor = "default";
     }
 
     protected _onGroundPointerLDown = (e: IMouseState) => {
@@ -606,11 +606,11 @@ class ElevationProfileScene extends RenderNode {
     }
 
     protected _onHeadPointerEnter = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "pointer";
+        e.renderer.handler.originalCanvas!.style.cursor = "pointer";
     }
 
     protected _onHeadPointerLeave = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "default";
+        e.renderer.handler.originalCanvas!.style.cursor = "default";
     }
 
     protected _onHeadPointerLDown = (e: IMouseState) => {

@@ -289,7 +289,7 @@ class BaseBillboardHandler {
 
         gl.uniform1f(shu.planetRadius, (ec.renderNode as Planet)._planetRadius2 || 0);
 
-        gl.uniform2fv(shu.viewport, [h.canvas!.clientWidth, h.canvas!.clientHeight]);
+        gl.uniform2fv(shu.viewport, [h.getClientWidth(), h.getClientHeight()]);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this._rotationBuffer as WebGLBuffer);
         gl.vertexAttribPointer(sha.a_rotation, this._rotationBuffer!.itemSize, gl.FLOAT, false, 0, 0);
@@ -343,7 +343,7 @@ class BaseBillboardHandler {
 
         gl.uniform1f(shu.planetRadius, (ec.renderNode as Planet)._planetRadius2 || 0);
 
-        gl.uniform2fv(shu.viewport, [h.canvas!.clientWidth, h.canvas!.clientHeight]);
+        gl.uniform2fv(shu.viewport, [h.getClientWidth(), h.getClientHeight()]);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this._rotationBuffer as WebGLBuffer);
         gl.vertexAttribPointer(sha.a_rotation, this._rotationBuffer!.itemSize, gl.FLOAT, false, 0, 0);

@@ -184,9 +184,9 @@ class SelectionScene extends RenderNode {
     _onMouseLdown(e: any) {
 
         //workaround to show pointer, because ogGrabbingPoiner keep !importanti which override pointer style
-        e.renderer.handler.canvas.classList.remove('ogGrabbingPoiner');
+        e.renderer.handler.originalCanvas.classList.remove('ogGrabbingPoiner');
 
-        e.renderer.handler.canvas.style.cursor = 'pointer';
+        e.renderer.handler.originalCanvas.style.cursor = 'pointer';
 
         if (!this._startLonLat) {
 
@@ -235,7 +235,7 @@ class SelectionScene extends RenderNode {
 
             this._startLonLat = null;
         }
-        e.renderer.handler.canvas.style.cursor = 'default';
+        e.renderer.handler.originalCanvas.style.cursor = 'default';
         this.renderer?.controls.mouseNavigation?.activate();
     }
 

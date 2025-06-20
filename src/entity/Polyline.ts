@@ -2117,7 +2117,7 @@ class Polyline {
             gl.uniform4fv(shu.visibleSphere, this._visibleSphere);
 
             //gl.uniform2fv(shu.uFloatParams, [(rn as Planet)._planetRadius2 || 0.0, r.activeCamera!._tanViewAngle_hradOneByHeight]);
-            gl.uniform2fv(shu.viewport, [r.handler.canvas!.width, r.handler.canvas!.height]);
+            gl.uniform2fv(shu.viewport, [r.handler.originalCanvas!.width, r.handler.originalCanvas!.height]);
             gl.uniform1f(shu.thickness, this.thickness * 0.5);
             gl.uniform1f(shu.opacity, this._opacity * ec._fadingOpacity);
 
@@ -2179,7 +2179,7 @@ class Polyline {
 
             gl.uniform4fv(shu.visibleSphere, this._visibleSphere);
 
-            gl.uniform2fv(shu.viewport, [r.handler.canvas!.width, r.handler.canvas!.height]);
+            gl.uniform2fv(shu.viewport, [r.handler.originalCanvas!.width, r.handler.originalCanvas!.height]);
             gl.uniform1f(shu.thickness, this.thickness * 0.5 * ec.pickingScale[0]);
 
             let v = this._verticesHighBuffer!;

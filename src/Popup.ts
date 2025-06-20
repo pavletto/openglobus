@@ -94,8 +94,9 @@ class Popup extends View<null> {
     public setScreen(p: Vec2) {
         if (this._planet) {
             let r = this._planet.renderer!.handler.pixelRatio;
+            const h = this._planet.renderer!.handler;
             this.el!.style.transform =
-                `translate(${p.x / r - this.clientWidth * 0.5}px, ${p.y / r - this._planet.renderer!.handler.canvas!.clientHeight - this.$tip!.clientHeight}px)`;
+                `translate(${p.x / r - this.clientWidth * 0.5}px, ${p.y / r - h.getClientHeight() - this.$tip!.clientHeight}px)`;
         }
     }
 

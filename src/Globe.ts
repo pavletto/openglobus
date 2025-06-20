@@ -59,6 +59,7 @@ export interface IGlobeParams {
     vectorTileSize?: number;
     gamma?: number;
     exposure?: number;
+    offscreen?: boolean;
 }
 
 const DEFAULT_NIGHT_SRC = `/night.png`;
@@ -135,6 +136,7 @@ class Globe {
     protected _instanceID: string;
 
     protected _canvas: HTMLCanvasElement;
+    public offscreenCanvas: OffscreenCanvas | null;
 
     public $inner: HTMLDivElementExt;
 
@@ -155,6 +157,7 @@ class Globe {
     public planet: Planet;
 
     public sun: Sun;
+    private originalCanvas?: HTMLCanvasElement;
 
     constructor(options: IGlobeParams) {
 
@@ -173,6 +176,12 @@ class Globe {
         this._canvas.style.display = "block";
         this._canvas.style.opacity = "0.0";
         this._canvas.style.transition = "opacity 150ms";
+        this.offscreenCanvas = null;
+
+        if (options.offscreen && (this._canvas as any).transferControlToOffscreen) {
+            this.offscreenCanvas = (this._canvas as any).transferControlToOffscreen();
+            this.originalCanvas = this._canvas;
+        }
 
         /**
          * Dom element where WebGL canvas creates
@@ -210,8 +219,9 @@ class Globe {
         };
 
         this.renderer = new Renderer(
-            new Handler(this._canvas, {
+            new Handler(this.offscreenCanvas || this._canvas, {
                 autoActivate: false,
+                originalCanvas: this.originalCanvas,
                 pixelRatio: options.dpi || (window.devicePixelRatio + 0.15),
                 context: {
                     //alpha: false,

@@ -204,9 +204,9 @@ export class MouseNavigation extends Control {
 
         renderEvents.updateButtonsStates(e.sys!.buttons);
         if (renderEvents.mouseState.leftButtonDown) {
-            this.renderer!.handler.canvas!.classList.add("ogGrabbingPoiner");
+            this.renderer!.handler.originalCanvas!.classList.add("ogGrabbingPoiner");
         } else {
-            this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+            this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
         }
     }
 
@@ -214,7 +214,7 @@ export class MouseNavigation extends Control {
         if (this.renderer!.events.mouseState.leftButtonDown) {
             this.vel.scale(0);
         }
-        this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
     }
 
     protected _onRHold = (e: IMouseState) => {
@@ -344,7 +344,7 @@ export class MouseNavigation extends Control {
 
         if (!this._grabbedPoint) return;
 
-        this.renderer!.handler.canvas!.classList.add("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.add("ogGrabbingPoiner");
 
         this._grabbedSphere.radius = this._grabbedPoint.length();
 
@@ -409,7 +409,7 @@ export class MouseNavigation extends Control {
 
     protected _onLUp = (e: IMouseState) => {
         this._hold = false;
-        this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
     }
 
     protected _handleDrag() {

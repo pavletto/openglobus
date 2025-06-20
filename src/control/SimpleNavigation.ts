@@ -100,7 +100,7 @@ export class SimpleNavigation extends Control {
 
     protected _onMouseLeftButtonClick = (e: IMouseState) => {
         if (this._active && this.renderer) {
-            this.renderer.handler.canvas!.classList.add("ogGrabbingPoiner");
+            this.renderer.handler.originalCanvas!.classList.add("ogGrabbingPoiner");
             this._grabbedPoint = this.renderer.getCartesianFromPixel(e);
             if (this._grabbedPoint) {
                 this._eye0.copy(this.renderer.activeCamera.eye);
@@ -109,7 +109,7 @@ export class SimpleNavigation extends Control {
     }
 
     protected _onMouseLeftButtonUp = (e: IMouseState) => {
-        this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
         if (e.x === e.prev_x && e.y === e.prev_y) {
             //this.force.set(0, 0, 0);
         }

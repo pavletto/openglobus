@@ -243,9 +243,9 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
 
         this.renderer = renderer;
 
-        this._touchHandler = new TouchHandler(renderer.handler.canvas!);
+        this._touchHandler = new TouchHandler(renderer.handler.originalCanvas!);
 
-        this._mouseHandler = new MouseHandler(renderer.handler.canvas!);
+        this._mouseHandler = new MouseHandler(renderer.handler.originalCanvas!);
 
         this._keyboardHandler = new KeyboardHandler();
 

@@ -72,10 +72,13 @@ export default function ({mode}: { mode: 'development' | 'production' }) {
             })
         ],
         server: {
-            fs: {
-                strict: true,
-                allow: ['src']
-            },
+            port: 3000,
+            host: '0.0.0.0',
+            open: true,
+            // fs: {
+            //     strict: true,
+            //     allow: ['src']
+            // },
             watch: {
                 ignored: [
                     '!**/*.glsl',
@@ -86,6 +89,6 @@ export default function ({mode}: { mode: 'development' | 'production' }) {
         optimizeDeps: {
             noDiscovery: true,
             include: []
-        }
+        },
     };
 }

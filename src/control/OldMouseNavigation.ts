@@ -220,9 +220,9 @@ export class OldMouseNavigation extends Control {
 
         renderEvents.updateButtonsStates(e.sys!.buttons);
         if (renderEvents.mouseState.leftButtonDown) {
-            this.renderer!.handler.canvas!.classList.add("ogGrabbingPoiner");
+            this.renderer!.handler.originalCanvas!.classList.add("ogGrabbingPoiner");
         } else {
-            this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+            this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
         }
     }
 
@@ -230,7 +230,7 @@ export class OldMouseNavigation extends Control {
         if (this.renderer!.events.mouseState.leftButtonDown) {
             this.scaleRot = 0;
         }
-        this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
     }
 
     protected onMouseWheel(e: IMouseState) {
@@ -300,7 +300,7 @@ export class OldMouseNavigation extends Control {
 
     protected onMouseLeftButtonClick() {
         if (this._active) {
-            this.renderer!.handler.canvas!.classList.add("ogGrabbingPoiner");
+            this.renderer!.handler.originalCanvas!.classList.add("ogGrabbingPoiner");
             this.grabbedPoint = this.planet!.getCartesianFromMouseTerrain()!;
             if (this.grabbedPoint) {
                 this._eye0.copy(this.planet!.camera.eye);
@@ -316,7 +316,7 @@ export class OldMouseNavigation extends Control {
     }
 
     protected onMouseLeftButtonUp(e: IMouseState) {
-        this.renderer!.handler.canvas!.classList.remove("ogGrabbingPoiner");
+        this.renderer!.handler.originalCanvas!.classList.remove("ogGrabbingPoiner");
         if (e.x === e.prev_x && e.y === e.prev_y) {
             this.scaleRot = 0.0;
         }

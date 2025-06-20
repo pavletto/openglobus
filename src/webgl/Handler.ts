@@ -22,6 +22,7 @@ type CreateTextureFunc = (image: ImageSource, internalFormat?: number | null, te
 export interface IHandlerParameters {
     anisotropy?: number;
     width?: number;
+    originalCanvas?: HTMLCanvasElement;
     height?: number;
     pixelRatio?: number;
     context?: {
@@ -108,7 +109,8 @@ class Handler {
      * @public
      * @type {HTMLCanvasElement | null}
      */
-    public canvas: HTMLCanvasElement | null;
+    public canvas: HTMLCanvasElement | OffscreenCanvas | null;
+    public originalCanvas: HTMLCanvasElement  ;
 
     /**
      * WebGL context.
@@ -161,11 +163,11 @@ class Handler {
     public extensions: Record<string, any>;
 
     /**
-     * HTML Canvas target.
+     * Canvas target.
      * @private
-     * @type {string | HTMLCanvasElement | undefined}
+     * @type {string | HTMLCanvasElement | OffscreenCanvas | undefined}
      */
-    protected _canvasTarget: string | HTMLCanvasElement | undefined;
+    protected _canvasTarget: string | HTMLCanvasElement | OffscreenCanvas | undefined;
 
     protected _lastAnimationFrameTime: number;
 
@@ -202,8 +204,14 @@ class Handler {
 
     protected _requestAnimationFrameId: number = 0;
 
-    constructor(canvasTarget: string | HTMLCanvasElement | undefined, params: IHandlerParameters = {}) {
+    constructor(canvasTarget: string | HTMLCanvasElement | OffscreenCanvas | undefined, params: IHandlerParameters = {}) {
+        if (canvasTarget instanceof OffscreenCanvas) {
 
+            this.originalCanvas = params.originalCanvas
+        } else {
+            this.originalCanvas = canvasTarget
+
+        }
         this.events = createEvents<["visibilitychange", "resize"]>(["visibilitychange", "resize"]);
 
         this._throttledDrawFrame = this.drawFrame;
@@ -290,15 +298,21 @@ class Handler {
 
     protected _createCanvas() {
         if (this._canvasTarget) {
-            if (this._canvasTarget instanceof HTMLElement) {
+            if (typeof OffscreenCanvas !== "undefined" && this._canvasTarget instanceof OffscreenCanvas) {
+                this.canvas = this._canvasTarget;
+            } else if (this._canvasTarget instanceof HTMLElement) {
                 this.canvas = this._canvasTarget;
             } else {
-                this.canvas = (document.getElementById(this._canvasTarget) || document.querySelector(this._canvasTarget)) as HTMLCanvasElement;
+                this.canvas = (document.getElementById(this._canvasTarget as any) || document.querySelector(this._canvasTarget as any)) as HTMLCanvasElement;
             }
         } else {
-            this.canvas = document.createElement("canvas");
-            this.canvas.width = this._params.width;
-            this.canvas.height = this._params.height;
+            if (typeof OffscreenCanvas !== "undefined") {
+                this.canvas = new OffscreenCanvas(this._params.width, this._params.height);
+            } else {
+                this.canvas = document.createElement("canvas");
+                this.canvas.width = this._params.width;
+                this.canvas.height = this._params.height;
+            }
         }
     }
 
@@ -954,13 +968,13 @@ class Handler {
             this._toggleVisibilityChange(entries[entries.length - 1].isIntersecting);
         }, {threshold: 0});
 
-        this.intersectionObserver.observe(this.canvas);
+        this.intersectionObserver.observe(this.originalCanvas || this.canvas);
 
         this.resizeObserver = new ResizeObserver(entries => {
             this._toggleVisibilityChange(entries[0].contentRect.width !== 0 && entries[0].contentRect.height !== 0);
         });
 
-        this.resizeObserver.observe(this.canvas);
+        this.resizeObserver.observe(this.originalCanvas|| this.canvas);
 
         document.addEventListener("visibilitychange", () => {
             this._toggleVisibilityChange(document.visibilityState === 'visible');
@@ -992,8 +1006,8 @@ class Handler {
         gl.depthFunc(gl.LESS);
         gl.enable(gl.DEPTH_TEST);
         this.setSize(
-            this.canvas.clientWidth || this._params.width,
-            this.canvas.clientHeight || this._params.height
+            this.getClientWidth() || this._params.width,
+            this.getClientHeight() || this._params.height
         );
         gl.frontFace(gl.CCW);
         gl.cullFace(gl.BACK);
@@ -1160,13 +1174,23 @@ class Handler {
         return this.canvas ? this.canvas.height : 0;
     }
 
+    public getClientWidth(): number {
+        if (!this.canvas) return 0;
+        return (this.canvas as any).clientWidth || this.canvas.width;
+    }
+
+    public getClientHeight(): number {
+        if (!this.canvas) return 0;
+        return (this.canvas as any).clientHeight || this.canvas.height;
+    }
+
     /**
      * Returns canvas aspect ratio.
      * @public
      * @returns {number} -
      */
     public getClientAspect(): number {
-        return this.canvas ? this.canvas.clientWidth / this.canvas.clientHeight : 0;
+        return this.canvas ? this.getClientWidth() / this.getClientHeight() : 0;
     }
 
     /**
@@ -1204,7 +1228,7 @@ class Handler {
         }
 
         /** Canvas resize checking */
-        let canvas = this.canvas!;
+        let canvas = this.originalCanvas!;
 
         if (Math.floor(canvas.clientWidth * this._params.pixelRatio) !== canvas.width || Math.floor(canvas.clientHeight * this._params.pixelRatio) !== canvas.height) {
             if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {

@@ -674,7 +674,7 @@ class Camera {
      * @returns {Vec3} - Direction vector
      */
     public unproject(x: number, y: number) {
-        // let c = this.renderer!.handler.canvas!,
+        // let c = this.renderer!.handler.originalCanvas!,
         //     w = c.width * 0.5,
         //     h = c.height * 0.5;
 

@@ -280,22 +280,22 @@ class PolygonDrawingScene extends RenderNode {
     }
 
     protected _onCornerMouseEnter = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "pointer";
+        e.renderer.handler.originalCanvas!.style.cursor = "pointer";
         this.hideGhostPointer();
     }
 
     _onCornerMouseLeave = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "default";
+        e.renderer.handler.originalCanvas!.style.cursor = "default";
         this.showGhostPointer();
     }
 
     _onCenterMouseEnter = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "pointer";
+        e.renderer.handler.originalCanvas!.style.cursor = "pointer";
         this.hideGhostPointer();
     }
 
     _onCenterMouseLeave = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "default";
+        e.renderer.handler.originalCanvas!.style.cursor = "default";
         if (!(this._pickedCenter || this._pickedCorner)) {
             this.showGhostPointer();
         }

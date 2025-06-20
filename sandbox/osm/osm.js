@@ -16,6 +16,7 @@ const globus = new Globe({
     sun: {
         stopped: false
     },
+    offscreen: true,
     //dpi: 0.8
 });
 

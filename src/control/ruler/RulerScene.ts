@@ -270,11 +270,11 @@ class RulerScene extends RenderNode {
     }
 
     protected _onCornerEnter = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "pointer";
+        e.renderer.handler.originalCanvas!.style.cursor = "pointer";
     }
 
     protected _onCornerLeave = (e: IMouseState) => {
-        e.renderer.handler.canvas!.style.cursor = "default";
+        e.renderer.handler.originalCanvas!.style.cursor = "default";
     }
 
     protected _onLdblclick = () => {
