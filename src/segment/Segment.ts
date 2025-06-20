@@ -1744,8 +1744,8 @@ class Segment {
 
     public increaseTransitionOpacity() {
         //this._transitionOpacity += 0.01;
-        this._transitionOpacity += (window.performance.now() - this._transitionTimestamp) / this.planet.transitionTime;
-        this._transitionTimestamp = window.performance.now();
+        this._transitionOpacity += (performance.now() - this._transitionTimestamp) / this.planet.transitionTime;
+        this._transitionTimestamp = performance.now();
         if (this._transitionOpacity > 2.0) {
             this._transitionOpacity = 2.0;
         }
@@ -1770,8 +1770,8 @@ class Segment {
 
     public fadingTransitionOpacity() {
         this._transitionOpacity -= 0.01;
-        // this._transitionOpacity -= (window.performance.now() - this._transitionTimestamp) / this.planet.transitionTime;
-        this._transitionTimestamp = window.performance.now();
+        // this._transitionOpacity -= (performance.now() - this._transitionTimestamp) / this.planet.transitionTime;
+        this._transitionTimestamp = performance.now();
         if (this._transitionOpacity < 0.0) {
             this._transitionOpacity = 0;
         }
