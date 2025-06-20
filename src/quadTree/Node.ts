@@ -403,7 +403,7 @@ class Node {
             // store fading nodes, could be a parent or children nodes
             this._fadingNodes = [];
 
-            let timestamp = window.performance.now();
+            let timestamp = performance.now();
             this.segment._transitionTimestamp = timestamp;
 
             if (this.parentNode) {

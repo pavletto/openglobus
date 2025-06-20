@@ -526,19 +526,19 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
 
     protected onMouseDown(sys: MouseEvent, event?: MouseHandlerEvent) {
         if (event!.button === input.MB_LEFT) {
-            this._lClkBegins = window.performance.now();
+            this._lClkBegins = performance.now();
             this._lclickX = event!.clientX;
             this._lclickY = event!.clientY;
             this.mouseState.sys = sys;
             this.mouseState.leftButtonDown = true;
         } else if (event!.button === input.MB_RIGHT) {
-            this._rClkBegins = window.performance.now();
+            this._rClkBegins = performance.now();
             this._rclickX = event!.clientX;
             this._rclickY = event!.clientY;
             this.mouseState.sys = sys;
             this.mouseState.rightButtonDown = true;
         } else if (event!.button === input.MB_MIDDLE) {
-            this._mClkBegins = window.performance.now();
+            this._mClkBegins = performance.now();
             this._mclickX = event!.clientX;
             this._mclickY = event!.clientY;
             this.mouseState.sys = sys;
@@ -549,7 +549,7 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
     protected onMouseUp(sys: MouseEvent, event?: MouseHandlerEvent) {
         let ms = this.mouseState;
         ms.sys = sys;
-        let t = window.performance.now();
+        let t = performance.now();
 
         if (event!.button === input.MB_LEFT) {
             ms.leftButtonDown = false;
@@ -561,13 +561,13 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
                 t - this._lClkBegins <= ms.clickDelay
             ) {
                 if (this._ldblClkBegins) {
-                    let deltatime = window.performance.now() - this._ldblClkBegins;
+                    let deltatime = performance.now() - this._ldblClkBegins;
                     if (deltatime <= ms.doubleClickDelay) {
                         ms.leftButtonDoubleClick = true;
                     }
                     this._ldblClkBegins = 0;
                 } else {
-                    this._ldblClkBegins = window.performance.now();
+                    this._ldblClkBegins = performance.now();
                 }
 
                 ms.leftButtonClick = true;
@@ -583,13 +583,13 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
                 t - this._rClkBegins <= ms.clickDelay
             ) {
                 if (this._rdblClkBegins) {
-                    let deltatime = window.performance.now() - this._rdblClkBegins;
+                    let deltatime = performance.now() - this._rdblClkBegins;
                     if (deltatime <= ms.doubleClickDelay) {
                         ms.rightButtonDoubleClick = true;
                     }
                     this._rdblClkBegins = 0;
                 } else {
-                    this._rdblClkBegins = window.performance.now();
+                    this._rdblClkBegins = performance.now();
                 }
 
                 ms.rightButtonClick = true;
@@ -605,13 +605,13 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
                 t - this._mClkBegins <= ms.clickDelay
             ) {
                 if (this._mdblClkBegins) {
-                    let deltatime = window.performance.now() - this._mdblClkBegins;
+                    let deltatime = performance.now() - this._mdblClkBegins;
                     if (deltatime <= ms.doubleClickDelay) {
                         ms.middleButtonDoubleClick = true;
                     }
                     this._mdblClkBegins = 0;
                 } else {
-                    this._mdblClkBegins = window.performance.now();
+                    this._mdblClkBegins = performance.now();
                 }
 
                 ms.middleButtonClick = true;
@@ -662,13 +662,13 @@ class RendererEvents extends Events<RendererEventsType> implements RendererEvent
 
             if (this._oneTouchStart) {
                 if (this._dblTchBegins) {
-                    let deltatime = window.performance.now() - this._dblTchBegins;
+                    let deltatime = performance.now() - this._dblTchBegins;
                     if (deltatime <= ts.doubleTouchDelay) {
                         ts.doubleTouch = true;
                     }
                     this._dblTchBegins = 0;
                 }
-                this._dblTchBegins = window.performance.now();
+                this._dblTchBegins = performance.now();
                 this._oneTouchStart = false;
             }
         }

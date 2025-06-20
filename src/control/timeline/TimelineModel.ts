@@ -1,5 +1,6 @@
 import {type EventsHandler, createEvents} from '../../Events';
 import {addSeconds} from "./timelineUtils";
+import {raf, caf} from '../../utils/raf';
 
 type TimelineEventsList = ["change", "current"];
 
@@ -49,14 +50,14 @@ class TimelineModel {
 
     public play() {
         if (!this._requestAnimationFrameId) {
-            this._prevNow = window.performance.now();
+            this._prevNow = performance.now();
             this._animationFrameCallback();
         }
     }
 
     public stop() {
         if (this._requestAnimationFrameId) {
-            window.cancelAnimationFrame(this._requestAnimationFrameId);
+            caf(this._requestAnimationFrameId);
             this._requestAnimationFrameId = 0;
         }
     }
@@ -66,14 +67,14 @@ class TimelineModel {
     }
 
     protected _animationFrameCallback() {
-        this._requestAnimationFrameId = window.requestAnimationFrame(() => {
+        this._requestAnimationFrameId = raf(() => {
             this._frame();
             this._animationFrameCallback();
         });
     }
 
     protected _frame() {
-        let now = window.performance.now();
+        let now = performance.now();
         this.dt = now - this._prevNow;
         this._prevNow = now;
 

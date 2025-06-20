@@ -222,7 +222,7 @@ export class VectorTileCreator {
             let f = this._framebuffer!.activate();
 
             let deltaTime = 0,
-                startTime = window.performance.now();
+                startTime = performance.now();
 
             while (this._queue.length && deltaTime < MAX_FRAME_TIME) {
                 let material = this._queue.shift()!;
@@ -382,7 +382,7 @@ export class VectorTileCreator {
                     material.isLoading = false;
                 }
 
-                deltaTime = window.performance.now() - startTime;
+                deltaTime = performance.now() - startTime;
             }
 
             gl.enable(gl.DEPTH_TEST);

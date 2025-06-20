@@ -375,7 +375,7 @@ export class NormalMapCreator {
             gl.disable(gl.BLEND);
 
             let deltaTime = 0,
-                startTime = window.performance.now();
+                startTime = performance.now();
 
             while (this._lock.isFree() && this._queue.length && deltaTime < 0.25) {
                 const segment = this._queue.shift()!;
@@ -387,7 +387,7 @@ export class NormalMapCreator {
                     segment.normalMapTextureBias[2] = 1;
                 }
                 segment._inTheQueue = false;
-                deltaTime = window.performance.now() - startTime;
+                deltaTime = performance.now() - startTime;
             }
 
             gl.enable(gl.BLEND);

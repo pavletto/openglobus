@@ -12,6 +12,7 @@ import {ProgramController} from "./ProgramController";
 import {Program} from "./Program";
 import {Stack} from "../Stack";
 import {throttle} from "../utils/shared";
+import {raf, caf} from "../utils/raf";
 
 export type WebGLContextExt = { type: string } & WebGL2RenderingContext;
 export type WebGLBufferExt = { numItems: number; itemSize: number } & WebGLBuffer;
@@ -1209,7 +1210,7 @@ class Handler {
      */
     public drawFrame = () => {
         /** Calculating frame time */
-        let now = window.performance.now();
+        let now = performance.now();
         let prevDeltaTime = this.deltaTime;
         //Make some filter:)
         this.deltaTime = (now - this._lastAnimationFrameTime + this.prevDeltaTime) * 0.5;
@@ -1233,7 +1234,7 @@ class Handler {
         if (Math.floor(canvas.clientWidth * this._params.pixelRatio) !== canvas.width || Math.floor(canvas.clientHeight * this._params.pixelRatio) !== canvas.height) {
             if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {
                 this.stop();
-            } else if (!document.hidden) {
+            } else if (typeof document === "undefined" || !document.hidden) {
                 this.start();
                 this.setSize(canvas.clientWidth, canvas.clientHeight);
             }
@@ -1265,7 +1266,7 @@ class Handler {
 
     public stop() {
         if (this._requestAnimationFrameId) {
-            window.cancelAnimationFrame(this._requestAnimationFrameId);
+            caf(this._requestAnimationFrameId);
             this._requestAnimationFrameId = 0;
         }
     }
@@ -1287,7 +1288,7 @@ class Handler {
      * @protected
      */
     protected _animationFrameCallback() {
-        this._requestAnimationFrameId = window.requestAnimationFrame(() => {
+        this._requestAnimationFrameId = raf(() => {
             this._throttledDrawFrame();
             this._requestAnimationFrameId && this._animationFrameCallback();
         });
