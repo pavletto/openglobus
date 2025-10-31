@@ -75,17 +75,23 @@ class RotatedSelectionScene extends SelectionScene {
         // Store the camera heading (the orientation of the rotated rectangle)
         this._heading = cameraHeading;
 
-        // Update corner entities to show start and end positions
-        this._cornerEntity[0].setCartesian3v(startPos);
-        this._cornerEntity[1].setCartesian3v(endPos);
-
         // Convert corners to cartesian for path drawing
+        let corner1Cart = this._planet.ellipsoid.lonLatToCartesian(corner1);
+        let corner2Cart = this._planet.ellipsoid.lonLatToCartesian(corner2);
+        let corner3Cart = this._planet.ellipsoid.lonLatToCartesian(corner3);
+        let corner4Cart = this._planet.ellipsoid.lonLatToCartesian(corner4);
+
+        // Update corner entities to match the actual rotated rectangle corners
+        // Using opposite corners (corner1 and corner3) as the bounding box markers
+        this._cornerEntity[0].setCartesian3v(corner1Cart);
+        this._cornerEntity[1].setCartesian3v(corner3Cart);
+
         let corners = [
-            this._planet.ellipsoid.lonLatToCartesian(corner1),
-            this._planet.ellipsoid.lonLatToCartesian(corner2),
-            this._planet.ellipsoid.lonLatToCartesian(corner3),
-            this._planet.ellipsoid.lonLatToCartesian(corner4),
-            this._planet.ellipsoid.lonLatToCartesian(corner1)  // close the rectangle
+            corner1Cart,
+            corner2Cart,
+            corner3Cart,
+            corner4Cart,
+            corner1Cart  // close the rectangle
         ];
 
         // Create the path with smooth edges
