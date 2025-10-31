@@ -96,3 +96,5 @@ export class Selection extends Control {
         this.renderer!.removeNode(this._selectorScene);
     }
 }
+
+export { RotatedSelectionScene } from './RotatedSelectionScene';
