@@ -72,9 +72,8 @@ class RotatedSelectionScene extends SelectionScene {
         let corner4 = this._planet.ellipsoid.direct(centerLonLat, corner4Azimuth, diagonalDist).destination;
         corner4.height = startLonLat.height;
 
-        // Calculate heading for display (from center to first corner)
-        let res = this._planet.ellipsoid.inverse(startLonLat, endLonLat);
-        this._heading = res.initialAzimuth;
+        // Store the camera heading (the orientation of the rotated rectangle)
+        this._heading = cameraHeading;
 
         // Update corner entities to show start and end positions
         this._cornerEntity[0].setCartesian3v(startPos);
